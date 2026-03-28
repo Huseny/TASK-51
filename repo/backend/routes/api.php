@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\RideOrderController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -21,4 +22,12 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['token.not_expired', 'auth:sanctum', 'role:admin'])->get('/admin/panel', function () {
         return response()->json(['message' => 'Admin panel access granted']);
     });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum', 'role:rider'])->group(function (): void {
+        Route::post('/ride-orders', [RideOrderController::class, 'store']);
+        Route::get('/ride-orders', [RideOrderController::class, 'index']);
+        Route::patch('/ride-orders/{rideOrder}/transition', [RideOrderController::class, 'transition']);
+    });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum'])->get('/ride-orders/{rideOrder}', [RideOrderController::class, 'show']);
 });

@@ -88,3 +88,13 @@ docker compose run --rm frontend npm run test
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `POST /api/v1/ride-orders` (rider)
+- `GET /api/v1/ride-orders` (rider scoped)
+- `GET /api/v1/ride-orders/{id}` (owner/admin via policy)
+- `PATCH /api/v1/ride-orders/{id}/transition` (rider cancel)
+
+## Ride Order Automation
+
+- Auto-cancel unmatched rides (10m): `php artisan ride:auto-cancel-unmatched`
+- Auto-revert no-show accepted rides (5m): `php artisan ride:auto-revert-no-show`
+- Both commands are scheduled every minute in `routes/console.php`

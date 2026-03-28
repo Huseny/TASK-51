@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -53,5 +54,15 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function riderOrders(): HasMany
+    {
+        return $this->hasMany(RideOrder::class, 'rider_id');
+    }
+
+    public function driverOrders(): HasMany
+    {
+        return $this->hasMany(RideOrder::class, 'driver_id');
     }
 }

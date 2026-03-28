@@ -7,10 +7,37 @@ const props = defineProps({
 })
 
 const linksByRole = {
-  rider: ['Dashboard', 'My Trips', 'Shop', 'Notifications', 'Settings'],
-  driver: ['Dashboard', 'Available Rides', 'My Rides', 'Vehicles', 'Notifications', 'Settings'],
-  fleet_manager: ['Dashboard', 'Vehicles', 'Products', 'Reports', 'Notifications', 'Settings'],
-  admin: ['Dashboard', 'Users', 'All Rides', 'Reports', 'Notifications', 'Settings'],
+  rider: [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'My Trips', to: '/rider/trips' },
+    { label: 'Shop', to: '/dashboard' },
+    { label: 'Notifications', to: '/dashboard' },
+    { label: 'Settings', to: '/dashboard' },
+  ],
+  driver: [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Available Rides', to: '/dashboard' },
+    { label: 'My Rides', to: '/dashboard' },
+    { label: 'Vehicles', to: '/dashboard' },
+    { label: 'Notifications', to: '/dashboard' },
+    { label: 'Settings', to: '/dashboard' },
+  ],
+  fleet_manager: [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Vehicles', to: '/dashboard' },
+    { label: 'Products', to: '/dashboard' },
+    { label: 'Reports', to: '/dashboard' },
+    { label: 'Notifications', to: '/dashboard' },
+    { label: 'Settings', to: '/dashboard' },
+  ],
+  admin: [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Users', to: '/dashboard' },
+    { label: 'All Rides', to: '/dashboard' },
+    { label: 'Reports', to: '/dashboard' },
+    { label: 'Notifications', to: '/dashboard' },
+    { label: 'Settings', to: '/dashboard' },
+  ],
 }
 </script>
 
@@ -18,13 +45,13 @@ const linksByRole = {
   <aside class="sidebar glass-card">
     <p class="sidebar__title">Workspace</p>
     <nav class="sidebar__links">
-      <a
+      <RouterLink
         v-for="link in linksByRole[props.role] || linksByRole.rider"
-        :key="link"
-        href="#"
+        :key="link.label"
+        :to="link.to"
       >
-        {{ link }}
-      </a>
+        {{ link.label }}
+      </RouterLink>
     </nav>
   </aside>
 </template>
@@ -48,7 +75,7 @@ const linksByRole = {
   gap: var(--space-2);
 }
 
-.sidebar__links a {
+.sidebar__links :deep(a) {
   text-decoration: none;
   color: var(--color-text);
   border-radius: var(--radius-sm);
@@ -56,7 +83,8 @@ const linksByRole = {
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
-.sidebar__links a:hover {
+.sidebar__links :deep(a:hover),
+.sidebar__links :deep(.router-link-active) {
   background: rgba(67, 97, 238, 0.18);
   transform: translateX(4px);
 }

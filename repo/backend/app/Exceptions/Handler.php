@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Throwable;
 
@@ -24,6 +25,14 @@ class Handler
             ], 422);
         }
 
+        if ($exception instanceof InvalidTransitionException) {
+            return response()->json([
+                'error' => 'invalid_transition',
+                'message' => $exception->getMessage(),
+                'details' => (object) [],
+            ], 422);
+        }
+
         if ($exception instanceof AuthenticationException) {
             return response()->json([
                 'error' => 'unauthenticated',
@@ -33,6 +42,14 @@ class Handler
         }
 
         if ($exception instanceof AuthorizationException) {
+            return response()->json([
+                'error' => 'forbidden',
+                'message' => 'You are not authorized to perform this action',
+                'details' => (object) [],
+            ], 403);
+        }
+
+        if ($exception instanceof AccessDeniedHttpException) {
             return response()->json([
                 'error' => 'forbidden',
                 'message' => 'You are not authorized to perform this action',

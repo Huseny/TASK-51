@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import DashboardPage from '@/pages/DashboardPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
+import RiderTripDetailPage from '@/pages/rider/RiderTripDetailPage.vue'
+import RiderTripsPage from '@/pages/rider/RiderTripsPage.vue'
 import { useAuthStore } from '@/stores/authStore'
 
 const router = createRouter({
@@ -30,6 +32,24 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         roles: ['rider', 'driver', 'fleet_manager', 'admin'],
+      },
+    },
+    {
+      path: '/rider/trips',
+      name: 'rider-trips',
+      component: RiderTripsPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['rider'],
+      },
+    },
+    {
+      path: '/rider/trips/:id',
+      name: 'rider-trip-detail',
+      component: RiderTripDetailPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['rider', 'admin'],
       },
     },
   ],
