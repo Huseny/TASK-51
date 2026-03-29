@@ -46,6 +46,14 @@ const fetchProduct = async () => {
   const response = await api.get(`/products/${route.params.id}`)
   product.value = response.data.product
   selectedVariantId.value = product.value.variants?.[0]?.id || null
+
+  try {
+    await api.post('/interactions', {
+      item_id: Number(product.value.id),
+      interaction_type: 'view',
+    })
+  } catch {
+  }
 }
 
 const purchase = async () => {

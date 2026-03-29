@@ -7,6 +7,7 @@ import RideChatPage from '@/pages/chat/RideChatPage.vue'
 import ProductManagerPage from '@/pages/products/ProductManagerPage.vue'
 import ShopProductDetailPage from '@/pages/products/ShopProductDetailPage.vue'
 import ShopProductListPage from '@/pages/products/ShopProductListPage.vue'
+import ReportsPage from '@/pages/reports/ReportsPage.vue'
 import VehicleDetailPage from '@/pages/vehicles/VehicleDetailPage.vue'
 import VehicleListPage from '@/pages/vehicles/VehicleListPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
@@ -159,6 +160,15 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         roles: ['rider', 'driver', 'fleet_manager', 'admin'],
+      },
+    },
+    {
+      path: '/reports',
+      name: 'reports',
+      component: ReportsPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['fleet_manager', 'admin'],
       },
     },
   ],

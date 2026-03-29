@@ -54,3 +54,13 @@
    - **Question**: What happens to notifications suppressed by frequency caps?
    - **My Understanding**: Suppressed notifications are silently dropped. The prompt says alerts are constrained to a maximum, which implies hard limits and no delayed queueing.
    - **Solution**: Implemented strict cap enforcement that discards suppressed notifications and does not enqueue them for later delivery.
+
+12. [Offline Collaborative Filtering Scope]
+   - **Question**: How should collaborative filtering be implemented efficiently in offline PHP/MySQL without external ML tooling?
+   - **My Understanding**: Full matrix factorization is too heavy for this stage and environment.
+   - **Solution**: Implemented a simplified collaborative baseline using global item popularity weighted by interaction scores, then fused it with per-user content similarity on categories/tags.
+
+13. [Region Multi-Match Priority]
+   - **Question**: What happens if a ride origin address matches keywords from multiple regions?
+   - **My Understanding**: First match wins.
+   - **Solution**: Implemented sequential region matching using the order defined in `database/data/regions.json`; first matched region is selected, otherwise `Other`.

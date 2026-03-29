@@ -1,0 +1,5 @@
+{
+  "Northside": ["north", "uptown", "airport", "75001", "75002"],
+  "Downtown": ["downtown", "center", "main st", "75003"],
+  "Southside": ["south", "stadium", "75004"]
+}

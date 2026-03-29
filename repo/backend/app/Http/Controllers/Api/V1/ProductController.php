@@ -9,6 +9,7 @@ use App\Http\Requests\Products\ProductRequest;
 use App\Http\Requests\Products\ProductUpdateRequest;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\InteractionService;
 use App\Services\PurchaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    public function __construct(private readonly PurchaseService $purchaseService)
+    public function __construct(
+        private readonly PurchaseService $purchaseService,
+        private readonly InteractionService $interactionService,
+    )
     {
     }
 
@@ -166,6 +170,8 @@ class ProductController extends Controller
             (int) $request->validated('variant_id'),
             (int) $request->validated('quantity'),
         );
+
+        $this->interactionService->log($request->user(), $product->id, 'purchase');
 
         return response()->json([
             'purchase' => $purchase,

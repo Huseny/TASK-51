@@ -3,10 +3,13 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DriverRideController;
 use App\Http\Controllers\Api\V1\GroupChatController;
+use App\Http\Controllers\Api\V1\InteractionController;
 use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\NotificationSubscriptionController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\RecommendationController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RideOrderController;
 use App\Http\Controllers\Api\V1\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +72,8 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['token.not_expired', 'auth:sanctum'])->group(function (): void {
         Route::get('/products', [ProductController::class, 'index']);
         Route::get('/products/{product}', [ProductController::class, 'show']);
+        Route::post('/interactions', [InteractionController::class, 'store']);
+        Route::get('/recommendations', [RecommendationController::class, 'index']);
 
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
@@ -91,7 +96,23 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/products/{product}/purchase', [ProductController::class, 'purchase']);
     });
 
+    Route::middleware(['token.not_expired', 'auth:sanctum', 'role:admin,fleet_manager'])->prefix('reports')->group(function (): void {
+        Route::get('/trends', [ReportController::class, 'trends']);
+        Route::get('/distribution', [ReportController::class, 'distribution']);
+        Route::get('/regions', [ReportController::class, 'regions']);
+        Route::post('/export', [ReportController::class, 'export']);
+
+        Route::get('/templates', [ReportController::class, 'templates']);
+        Route::post('/templates', [ReportController::class, 'storeTemplate']);
+        Route::patch('/templates/{template}', [ReportController::class, 'updateTemplate']);
+        Route::delete('/templates/{template}', [ReportController::class, 'destroyTemplate']);
+    });
+
     Route::get('/media/{media}/download', [MediaController::class, 'download'])
         ->name('media.download')
         ->middleware('media.access');
+
+    Route::get('/reports/exports/{filename}', [ReportController::class, 'download'])
+        ->name('reports.exports.download')
+        ->middleware('export.access');
 });
