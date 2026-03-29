@@ -21,9 +21,6 @@ class AuthController extends Controller
     {
         $result = $this->authService->register($request->validated());
         Auth::guard('web')->login($result['user']);
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
 
         return response()->json($result, 201);
     }
@@ -37,9 +34,6 @@ class AuthController extends Controller
 
         if ($result['status'] === 200 && isset($result['body']['user'])) {
             Auth::guard('web')->login($result['body']['user']);
-            if ($request->hasSession()) {
-                $request->session()->regenerate();
-            }
         }
 
         return response()->json($result['body'], $result['status']);
@@ -54,10 +48,6 @@ class AuthController extends Controller
         }
 
         Auth::guard('web')->logout();
-        if ($request->hasSession()) {
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-        }
 
         Log::channel('auth')->info('User logged out successfully', [
             'user_id' => $user?->id,

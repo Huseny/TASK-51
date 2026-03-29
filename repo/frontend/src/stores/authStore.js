@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', {
 
       this.user = user
       this.isAuthenticated = true
+      this.initialized = true
       localStorage.setItem(USER_KEY, JSON.stringify(user))
 
       if (previousUserId && previousUserId !== user.id) {
@@ -46,7 +47,10 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
 
       try {
-        await ensureCsrfCookie()
+        try {
+          await ensureCsrfCookie()
+        } catch {
+        }
         const response = await api.post('/auth/login', { username, password })
         this.persistSession(response.data.user)
         return { success: true }
@@ -69,7 +73,10 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
 
       try {
-        await ensureCsrfCookie()
+        try {
+          await ensureCsrfCookie()
+        } catch {
+        }
         const response = await api.post('/auth/register', data)
         this.persistSession(response.data.user)
         return { success: true }

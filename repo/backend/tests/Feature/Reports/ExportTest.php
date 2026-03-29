@@ -158,7 +158,7 @@ class ExportTest extends TestCase
         Sanctum::actingAs($rider);
         $this->get($requestPath)->assertStatus(403);
 
-        $this->app['auth']->guard('sanctum')->setUser(null);
+        $this->app['auth']->guard('sanctum')->forgetUser();
         $this->get($requestPath)->assertStatus(401);
     }
 

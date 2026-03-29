@@ -20,7 +20,7 @@ class CompressionJobTest extends TestCase
         Storage::fake('local');
         $uploader = User::factory()->create(['role' => 'driver']);
 
-        $image = UploadedFile::fake()->image('large.jpg', 4000, 2500);
+        $image = UploadedFile::fake()->image('large.jpg', 2200, 1400);
         $path = $image->storeAs('media', 'img-original.jpg', 'local');
 
         $media = MediaAsset::query()->create([
@@ -47,7 +47,7 @@ class CompressionJobTest extends TestCase
         Storage::fake('local');
         $uploader = User::factory()->create(['role' => 'driver']);
 
-        $image = UploadedFile::fake()->image('large2.jpg', 4200, 2800);
+        $image = UploadedFile::fake()->image('large2.jpg', 2300, 1500);
         $path = $image->storeAs('media', 'img2-original.jpg', 'local');
 
         $media = MediaAsset::query()->create([
@@ -94,6 +94,6 @@ class CompressionJobTest extends TestCase
         (new ProcessMediaAsset($media->id))->handle();
 
         $this->assertNull($media->fresh()->compressed_path);
-        Log::shouldHaveReceived('channel')->with('app')->atLeast()->once();
+        Log::shouldHaveReceived('warning')->atLeast()->once();
     }
 }

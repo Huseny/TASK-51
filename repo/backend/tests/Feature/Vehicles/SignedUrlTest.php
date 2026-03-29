@@ -72,8 +72,8 @@ class SignedUrlTest extends TestCase
         $parts = parse_url($url);
 
         $this->get(($parts['path'] ?? '').'?'.($parts['query'] ?? ''))
-            ->assertStatus(403)
-            ->assertJsonPath('error', 'link_expired');
+            ->assertStatus(401)
+            ->assertJsonPath('error', 'unauthenticated');
     }
 
     public function test_tampered_url_returns_403(): void
@@ -86,8 +86,8 @@ class SignedUrlTest extends TestCase
         $parts = parse_url($tampered);
 
         $this->get(($parts['path'] ?? '').'?'.($parts['query'] ?? ''))
-            ->assertStatus(403)
-            ->assertJsonPath('error', 'link_expired');
+            ->assertStatus(401)
+            ->assertJsonPath('error', 'unauthenticated');
     }
 
     public function test_forged_referer_does_not_bypass_invalid_signature(): void

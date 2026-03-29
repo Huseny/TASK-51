@@ -6,13 +6,36 @@ import {
   removePendingAction,
 } from '@/services/offlineQueue'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const browserHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+const configuredApiUrl = import.meta.env.VITE_API_URL
+
+const normalizeApiUrlForLocalHost = (url) => {
+  if (typeof window === 'undefined') {
+    return url
+  }
+
+  try {
+    const parsed = new URL(url)
+    const localHosts = new Set(['localhost', '127.0.0.1'])
+
+    if (localHosts.has(parsed.hostname) && localHosts.has(window.location.hostname)) {
+      parsed.hostname = window.location.hostname
+      return parsed.toString().replace(/\/$/, '')
+    }
+  } catch {
+  }
+
+  return url
+}
+
+const API_URL = normalizeApiUrlForLocalHost(configuredApiUrl || `http://${browserHost}:8000/api/v1`)
 const API_ORIGIN = new URL(API_URL).origin
 
 const transport = axios.create({
   baseURL: API_URL,
   timeout: 15000,
   withCredentials: true,
+  withXSRFToken: true,
   xsrfCookieName: 'XSRF-TOKEN',
   xsrfHeaderName: 'X-XSRF-TOKEN',
 })

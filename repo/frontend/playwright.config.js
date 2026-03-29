@@ -1,11 +1,11 @@
 import { defineConfig } from '@playwright/test'
 
-const webUrl = process.env.E2E_WEB_URL || 'http://127.0.0.1:3000'
+const webUrl = process.env.E2E_WEB_URL || 'http://127.0.0.1:3100'
 const apiUrl = process.env.E2E_API_URL || 'http://127.0.0.1:8000/api/v1'
 
 const webServers = [
   {
-    command: 'npm run dev -- --host 127.0.0.1 --port 3000',
+    command: 'npm run dev -- --host 127.0.0.1 --port 3100',
     url: webUrl,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

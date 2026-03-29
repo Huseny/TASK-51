@@ -49,7 +49,7 @@ class ProcessMediaAsset implements ShouldQueue
 
         $image = @imagecreatefromstring($binary);
         if (! $image) {
-            Log::channel('app')->warning('Unable to process image for compression', ['media_asset_id' => $media->id]);
+            Log::warning('Unable to process image for compression', ['media_asset_id' => $media->id]);
             return;
         }
 
@@ -81,7 +81,7 @@ class ProcessMediaAsset implements ShouldQueue
 
         $check = @shell_exec('ffmpeg -version 2>&1');
         if (! is_string($check) || ! str_contains(strtolower($check), 'ffmpeg version')) {
-            Log::channel('app')->warning(
+            Log::warning(
                 sprintf('FFmpeg not available - skipping video compression for %s', $media->original_filename),
                 ['media_asset_id' => $media->id]
             );
@@ -97,7 +97,7 @@ class ProcessMediaAsset implements ShouldQueue
         @shell_exec($command);
 
         if (! is_file($compressedAbsolute)) {
-            Log::channel('app')->warning('Video compression failed, original will be used', ['media_asset_id' => $media->id]);
+            Log::warning('Video compression failed, original will be used', ['media_asset_id' => $media->id]);
             return;
         }
 

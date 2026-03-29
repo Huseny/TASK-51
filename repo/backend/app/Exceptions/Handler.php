@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
@@ -93,6 +94,12 @@ class Handler
                 ], 403);
             }
         }
+
+        Log::error('Unhandled API exception', [
+            'exception' => get_class($exception),
+            'message' => $exception->getMessage(),
+            'path' => $request->path(),
+        ]);
 
         return response()->json([
             'error' => 'internal_server_error',

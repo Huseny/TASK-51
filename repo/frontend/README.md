@@ -59,7 +59,7 @@ Expected behavior:
 
 - exits `0` only when Playwright passes
 - exits non-zero when Playwright fails or services are unreachable
-- uses `E2E_WEB_URL` (default `http://127.0.0.1:3000`) and `E2E_API_URL` (default `http://127.0.0.1:8000/api/v1`)
+- uses `E2E_WEB_URL` (default `http://127.0.0.1:3100`) and `E2E_API_URL` (default `http://127.0.0.1:8000/api/v1`)
 
 Auth behavior:
 

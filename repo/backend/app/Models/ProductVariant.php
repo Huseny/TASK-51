@@ -11,6 +11,8 @@ class ProductVariant extends Model
 {
     use HasFactory;
 
+    protected $appends = ['tiers'];
+
     protected $fillable = [
         'product_id',
         'sku',
@@ -43,5 +45,14 @@ class ProductVariant extends Model
     public function purchases(): HasMany
     {
         return $this->hasMany(PurchaseRecord::class, 'variant_id');
+    }
+
+    public function getTiersAttribute()
+    {
+        if ($this->relationLoaded('pricingTiers')) {
+            return $this->getRelation('pricingTiers');
+        }
+
+        return $this->pricingTiers()->get();
     }
 }
