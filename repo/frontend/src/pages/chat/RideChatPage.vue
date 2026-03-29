@@ -106,7 +106,23 @@ const sendMessage = async (content) => {
     content,
   })
 
-  messages.value = [...messages.value, response.data.message]
+  if (response.data?.queued) {
+    messages.value = [
+      ...messages.value,
+      {
+        id: `queued-${Date.now()}`,
+        sender_id: user.value.id,
+        content,
+        type: 'user_message',
+        created_at: new Date().toISOString(),
+        sender: { id: user.value.id, username: user.value.username },
+        read_receipts: [],
+      },
+    ]
+  } else {
+    messages.value = [...messages.value, response.data.message]
+  }
+
   await scrollToBottom()
 }
 

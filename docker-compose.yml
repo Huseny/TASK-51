@@ -1,0 +1,86 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: roadlink-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: roadlink
+      MYSQL_USER: roadlink
+      MYSQL_PASSWORD: roadlink
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroadlink", "-proadlink"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  backend:
+    build:
+      context: ./repo/backend
+      dockerfile: docker/Dockerfile
+    container_name: roadlink-backend
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: roadlink
+      DB_USERNAME: roadlink
+      DB_PASSWORD: roadlink
+      QUEUE_CONNECTION: sync
+    volumes:
+      - ./repo/backend:/var/www/html
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: ./repo/backend
+      dockerfile: docker/Dockerfile
+    container_name: roadlink-scheduler
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: roadlink
+      DB_USERNAME: roadlink
+      DB_PASSWORD: roadlink
+      QUEUE_CONNECTION: sync
+    volumes:
+      - ./repo/backend:/var/www/html
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  frontend:
+    image: node:20-alpine
+    container_name: roadlink-frontend
+    working_dir: /app
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+    volumes:
+      - ./repo/frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port=3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  frontend_node_modules:

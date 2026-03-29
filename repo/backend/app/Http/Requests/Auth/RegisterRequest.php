@@ -20,6 +20,8 @@ class RegisterRequest extends FormRequest
             'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_]+$/', 'unique:users,username'],
             'password' => ['required', 'string', 'min:10', 'regex:/^(?=.*[A-Za-z])(?=.*\d).+$/', 'confirmed'],
             'role' => ['required', 'in:rider,driver,fleet_manager'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:30'],
         ];
     }
 

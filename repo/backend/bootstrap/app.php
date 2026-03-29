@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\Handler;
+use App\Http\Middleware\IdempotencyMiddleware;
 use App\Http\Middleware\EnsureTokenNotExpired;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\ValidateExportAccess;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'token.not_expired' => EnsureTokenNotExpired::class,
             'media.access' => ValidateMediaAccess::class,
             'export.access' => ValidateExportAccess::class,
+            'idempotency' => IdempotencyMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

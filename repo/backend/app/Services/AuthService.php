@@ -32,6 +32,8 @@ class AuthService
             'username' => $data['username'],
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
         ]);
 
         $token = $user->createToken('auth', ['*'], now()->addHours($this->tokenExpirationHours))->plainTextToken;

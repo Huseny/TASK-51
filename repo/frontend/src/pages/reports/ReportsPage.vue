@@ -27,6 +27,8 @@ const templates = ref([])
 const selectedTemplateId = ref('')
 const templateName = ref('')
 const error = ref('')
+const isLoading = ref(false)
+const exportLoadingType = ref('')
 
 const totalRides = computed(() => trends.value.datasets?.[0]?.data?.reduce((sum, value) => sum + Number(value), 0) || 0)
 const completedCount = computed(() => {
@@ -44,6 +46,7 @@ const exceptionRate = computed(() => {
 
 const fetchAll = async () => {
   error.value = ''
+  isLoading.value = true
 
   try {
     const [trendsRes, distributionRes, regionsRes, templatesRes] = await Promise.all([
@@ -59,17 +62,31 @@ const fetchAll = async () => {
     templates.value = templatesRes.data.data || []
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load reports.'
+    sessionStorage.setItem('roadlink_toast_message', error.value)
+    sessionStorage.setItem('roadlink_toast_type', 'error')
+  } finally {
+    isLoading.value = false
   }
 }
 
 const exportReport = async (type) => {
-  const response = await api.post('/reports/export', {
-    type,
-    format: 'csv',
-    filters: filters.value,
-  })
+  exportLoadingType.value = type
 
-  window.open(response.data.url, '_blank', 'noopener')
+  try {
+    const response = await api.post('/reports/export', {
+      type,
+      format: 'csv',
+      filters: filters.value,
+    })
+
+    window.open(response.data.url, '_blank', 'noopener')
+  } catch (err) {
+    const message = err.response?.data?.message || 'Export failed.'
+    sessionStorage.setItem('roadlink_toast_message', message)
+    sessionStorage.setItem('roadlink_toast_type', 'error')
+  } finally {
+    exportLoadingType.value = ''
+  }
 }
 
 const saveTemplate = async () => {
@@ -77,13 +94,19 @@ const saveTemplate = async () => {
     return
   }
 
-  await api.post('/reports/templates', {
-    name: templateName.value,
-    config: filters.value,
-  })
+  try {
+    await api.post('/reports/templates', {
+      name: templateName.value,
+      config: filters.value,
+    })
 
-  templateName.value = ''
-  await fetchAll()
+    templateName.value = ''
+    await fetchAll()
+  } catch (err) {
+    const message = err.response?.data?.message || 'Could not save template.'
+    sessionStorage.setItem('roadlink_toast_message', message)
+    sessionStorage.setItem('roadlink_toast_type', 'error')
+  }
 }
 
 const loadTemplate = () => {
@@ -122,11 +145,13 @@ onMounted(fetchAll)
             <option value="month">Month</option>
           </select>
         </label>
-        <button class="btn" @click="fetchAll">Apply</button>
+        <button class="btn" :disabled="isLoading" @click="fetchAll">{{ isLoading ? 'Loading...' : 'Apply' }}</button>
       </div>
     </section>
 
     <p v-if="error" class="error">{{ error }}</p>
+
+    <p v-if="isLoading" class="helper-text">Loading report data...</p>
 
     <section class="kpis">
       <article class="kpi glass-card"><strong>{{ totalRides }}</strong><span>Total Rides</span></article>
@@ -136,18 +161,18 @@ onMounted(fetchAll)
 
     <section class="charts">
       <article class="glass-card panel">
-        <div class="panel-head"><h2>Trends</h2><button class="link" @click="exportReport('trends')">Export CSV</button></div>
+        <div class="panel-head"><h2>Trends</h2><button class="link" :disabled="isLoading" @click="exportReport('trends')">{{ exportLoadingType === 'trends' ? 'Exporting...' : 'Export CSV' }}</button></div>
         <Line :data="trends" />
       </article>
 
       <article class="glass-card panel">
-        <div class="panel-head"><h2>Status Distribution</h2><button class="link" @click="exportReport('distribution')">Export CSV</button></div>
+        <div class="panel-head"><h2>Status Distribution</h2><button class="link" :disabled="isLoading" @click="exportReport('distribution')">{{ exportLoadingType === 'distribution' ? 'Exporting...' : 'Export CSV' }}</button></div>
         <Doughnut :data="distribution" />
       </article>
     </section>
 
     <section class="glass-card panel">
-      <div class="panel-head"><h2>Region Summary</h2><button class="link" @click="exportReport('regions')">Export CSV</button></div>
+      <div class="panel-head"><h2>Region Summary</h2><button class="link" :disabled="isLoading" @click="exportReport('regions')">{{ exportLoadingType === 'regions' ? 'Exporting...' : 'Export CSV' }}</button></div>
       <table class="table">
         <thead><tr><th>Region</th><th>Total Rides</th></tr></thead>
         <tbody>
@@ -160,14 +185,14 @@ onMounted(fetchAll)
       <h2>Templates</h2>
       <div class="template-actions">
         <input v-model="templateName" placeholder="Template name">
-        <button class="btn" @click="saveTemplate">Save View</button>
+        <button class="btn" :disabled="isLoading" @click="saveTemplate">Save View</button>
       </div>
       <div class="template-actions">
         <select v-model="selectedTemplateId">
           <option value="">Select template</option>
           <option v-for="template in templates" :key="template.id" :value="String(template.id)">{{ template.name }}</option>
         </select>
-        <button class="btn btn--ghost" @click="loadTemplate">Load</button>
+        <button class="btn btn--ghost" :disabled="isLoading" @click="loadTemplate">Load</button>
       </div>
     </section>
   </AppShell>
@@ -180,6 +205,8 @@ h1, h2 { margin: 0; }
 label { display: grid; gap: 6px; color: var(--color-text-muted); }
 input, select { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 8px 10px; background: rgba(20,26,47,0.45); color: var(--color-text); }
 .btn { border: none; border-radius: 999px; padding: 8px 14px; cursor: pointer; color: #fff; background: linear-gradient(120deg, var(--color-accent), #5f7cff); }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: 0.7; cursor: not-allowed; }
 .btn--ghost { background: transparent; color: var(--color-text); border: 1px solid var(--color-border); }
 .kpis { margin-top: var(--space-4); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-3); }
 .kpi { padding: var(--space-4); display: grid; gap: 4px; }
@@ -188,6 +215,7 @@ input, select { border: 1px solid var(--color-border); border-radius: var(--radi
 .panel { margin-top: var(--space-3); padding: var(--space-4); display: grid; gap: var(--space-3); }
 .panel-head { display: flex; justify-content: space-between; align-items: center; }
 .link { border: none; background: transparent; color: var(--color-accent); cursor: pointer; }
+.link:disabled { opacity: 0.6; cursor: not-allowed; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 8px; border-bottom: 1px solid var(--color-border); text-align: left; }
 .templates { margin-bottom: var(--space-4); }

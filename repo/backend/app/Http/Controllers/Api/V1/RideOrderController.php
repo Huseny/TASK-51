@@ -8,6 +8,7 @@ use App\Http\Requests\Rides\RideOrderTransitionRequest;
 use App\Models\RideOrder;
 use App\Models\RideOrderAuditLog;
 use App\Services\DriverScheduleService;
+use App\Services\NotificationService;
 use App\Services\RideOrderStateMachine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class RideOrderController extends Controller
     public function __construct(
         private readonly RideOrderStateMachine $stateMachine,
         private readonly DriverScheduleService $driverScheduleService,
+        private readonly NotificationService $notificationService,
     )
     {
     }
@@ -127,6 +129,20 @@ class RideOrderController extends Controller
         }
 
         $this->logDriverAction($action, $actor->id, $rideOrder->id, $request->validated('reason'));
+
+        if ($action === 'complete' && $order->rider) {
+            $this->notificationService->send(
+                $order->rider,
+                'ride_update',
+                'Ride completed',
+                sprintf('Your ride #%d has been completed.', $order->id),
+                [
+                    'ride_id' => $order->id,
+                    'url' => '/rider/trips/'.$order->id,
+                ],
+                'ride_'.$order->id.'_updates'
+            );
+        }
 
         return response()->json([
             'order' => $order->load(['auditLogs' => fn ($query) => $query->orderBy('created_at')]),

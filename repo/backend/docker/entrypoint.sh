@@ -5,9 +5,7 @@ if [ ! -f ".env" ] && [ -f ".env.example" ]; then
   cp .env.example .env
 fi
 
-if [ ! -d "vendor" ]; then
-  composer install --no-interaction --prefer-dist
-fi
+composer install --no-interaction --prefer-dist
 
 if ! grep -q "^APP_KEY=base64:" .env; then
   php artisan key:generate --force
@@ -22,6 +20,8 @@ if [ "$DB_CONNECTION" = "mysql" ]; then
 fi
 
 php artisan migrate --force
+
+php artisan storage:link || true
 
 USER_COUNT=$(php artisan tinker --execute="echo Illuminate\\Support\\Facades\\Schema::hasTable('users') ? App\\Models\\User::count() : 0;" --no-interaction)
 

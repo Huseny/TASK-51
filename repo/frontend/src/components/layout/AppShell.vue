@@ -1,4 +1,5 @@
 <script setup>
+import { useNetwork } from '@/composables/useNetwork'
 import Navbar from './Navbar.vue'
 import Sidebar from './Sidebar.vue'
 
@@ -10,6 +11,7 @@ defineProps({
 })
 
 const emit = defineEmits(['logout'])
+const { isOnline } = useNetwork()
 </script>
 
 <template>
@@ -24,6 +26,10 @@ const emit = defineEmits(['logout'])
         :role="user.role"
         @logout="emit('logout')"
       />
+
+      <div v-if="!isOnline" class="offline-banner">
+        You're offline - data may not be current. Actions will sync when reconnected.
+      </div>
 
       <main class="shell__main glass-card">
         <slot />
@@ -50,6 +56,15 @@ const emit = defineEmits(['logout'])
 .shell__main {
   padding: var(--space-6);
   min-height: calc(100vh - 132px);
+}
+
+.offline-banner {
+  border: 1px solid rgba(255, 209, 102, 0.45);
+  background: rgba(255, 209, 102, 0.15);
+  color: #ffe8b6;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 980px) {

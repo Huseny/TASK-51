@@ -53,12 +53,28 @@ const applyAction = async (action, reason = undefined) => {
   actionLoading.value = true
 
   try {
-    await api.patch(`/ride-orders/${ride.value.id}/transition`, {
+    const response = await api.patch(`/ride-orders/${ride.value.id}/transition`, {
       action,
       reason,
     })
 
-    await fetchRide()
+    if (response.data?.queued) {
+      const optimisticStatusByAction = {
+        start: 'in_progress',
+        complete: 'completed',
+        flag_exception: 'exception',
+      }
+
+      const nextStatus = optimisticStatusByAction[action]
+      if (nextStatus) {
+        ride.value = {
+          ...ride.value,
+          status: nextStatus,
+        }
+      }
+    } else {
+      await fetchRide()
+    }
   } finally {
     actionLoading.value = false
   }

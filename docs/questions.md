@@ -64,3 +64,8 @@
    - **Question**: What happens if a ride origin address matches keywords from multiple regions?
    - **My Understanding**: First match wins.
    - **Solution**: Implemented sequential region matching using the order defined in `database/data/regions.json`; first matched region is selected, otherwise `Other`.
+
+14. [Offline Sync Failure Handling]
+   - **Question**: What happens if a queued offline request fails during sync (for example, a 422 validation error)?
+   - **My Understanding**: The user should be notified and the request should not be retried indefinitely by default.
+   - **Solution**: Implemented an error toast on sync failure and discarded the failed queue item in this MVP flow.
