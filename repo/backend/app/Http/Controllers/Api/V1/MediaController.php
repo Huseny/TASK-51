@@ -35,8 +35,21 @@ class MediaController extends Controller
         return response()->json(['url' => $signedUrl]);
     }
 
-    public function download(MediaAsset $media)
+    public function download(Request $request, MediaAsset $media)
     {
+        $user = $request->user();
+
+        $ownsLinkedVehicle = $media->vehicles()
+            ->where('owner_id', $user->id)
+            ->exists();
+
+        if (! $ownsLinkedVehicle && $user->role !== 'admin') {
+            return response()->json([
+                'error' => 'forbidden',
+                'message' => 'You do not have permission to access this media',
+            ], 403);
+        }
+
         $path = $media->compressed_path ?: $media->disk_path;
         $absolutePath = Storage::disk('local')->path($path);
 

@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/authStore'
-import api from '@/services/api'
+import api, { clearOfflineQueue } from '@/services/api'
 
 vi.mock('@/services/api', () => ({
   default: {
     post: vi.fn(),
     get: vi.fn(),
   },
+  clearOfflineQueue: vi.fn(),
 }))
 
 describe('authStore', () => {
@@ -58,6 +59,7 @@ describe('authStore', () => {
     expect(store.user).toBeNull()
     expect(store.token).toBeNull()
     expect(localStorage.getItem('roadlink_token')).toBeNull()
+    expect(clearOfflineQueue).toHaveBeenCalled()
   })
 
   it('initialize restores from localStorage', async () => {
@@ -71,5 +73,14 @@ describe('authStore', () => {
     expect(store.token).toBe('persisted-token')
     expect(store.user.username).toBe('fleet01')
     expect(store.isAuthenticated).toBe(true)
+  })
+
+  it('switching authenticated user clears offline queue', () => {
+    const store = useAuthStore()
+
+    store.persistSession({ id: 1, username: 'rider01', role: 'rider' }, 'token-a')
+    store.persistSession({ id: 2, username: 'driver01', role: 'driver' }, 'token-b')
+
+    expect(clearOfflineQueue).toHaveBeenCalled()
   })
 })

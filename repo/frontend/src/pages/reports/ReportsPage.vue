@@ -20,6 +20,11 @@ const filters = ref({
   grouping: 'day',
 })
 
+const exportSettings = ref({
+  format: 'csv',
+  destination: 'default',
+})
+
 const trends = ref({ labels: [], datasets: [{ label: 'Rides', data: [] }] })
 const distribution = ref({ labels: [], datasets: [{ label: 'Ride Status', data: [] }] })
 const regions = ref([])
@@ -75,7 +80,8 @@ const exportReport = async (type) => {
   try {
     const response = await api.post('/reports/export', {
       type,
-      format: 'csv',
+      format: exportSettings.value.format,
+      destination: exportSettings.value.destination,
       filters: filters.value,
     })
 
@@ -145,6 +151,17 @@ onMounted(fetchAll)
             <option value="month">Month</option>
           </select>
         </label>
+        <label>
+          Export Format
+          <select v-model="exportSettings.format">
+            <option value="csv">CSV</option>
+            <option value="xlsx">XLSX</option>
+          </select>
+        </label>
+        <label>
+          Export Destination
+          <input v-model="exportSettings.destination" placeholder="default">
+        </label>
         <button class="btn" :disabled="isLoading" @click="fetchAll">{{ isLoading ? 'Loading...' : 'Apply' }}</button>
       </div>
     </section>
@@ -161,18 +178,18 @@ onMounted(fetchAll)
 
     <section class="charts">
       <article class="glass-card panel">
-        <div class="panel-head"><h2>Trends</h2><button class="link" :disabled="isLoading" @click="exportReport('trends')">{{ exportLoadingType === 'trends' ? 'Exporting...' : 'Export CSV' }}</button></div>
+        <div class="panel-head"><h2>Trends</h2><button class="link" :disabled="isLoading" @click="exportReport('trends')">{{ exportLoadingType === 'trends' ? `Exporting ${exportSettings.format.toUpperCase()}...` : `Export ${exportSettings.format.toUpperCase()}` }}</button></div>
         <Line :data="trends" />
       </article>
 
       <article class="glass-card panel">
-        <div class="panel-head"><h2>Status Distribution</h2><button class="link" :disabled="isLoading" @click="exportReport('distribution')">{{ exportLoadingType === 'distribution' ? 'Exporting...' : 'Export CSV' }}</button></div>
+        <div class="panel-head"><h2>Status Distribution</h2><button class="link" :disabled="isLoading" @click="exportReport('distribution')">{{ exportLoadingType === 'distribution' ? `Exporting ${exportSettings.format.toUpperCase()}...` : `Export ${exportSettings.format.toUpperCase()}` }}</button></div>
         <Doughnut :data="distribution" />
       </article>
     </section>
 
     <section class="glass-card panel">
-      <div class="panel-head"><h2>Region Summary</h2><button class="link" :disabled="isLoading" @click="exportReport('regions')">{{ exportLoadingType === 'regions' ? 'Exporting...' : 'Export CSV' }}</button></div>
+      <div class="panel-head"><h2>Region Summary</h2><button class="link" :disabled="isLoading" @click="exportReport('regions')">{{ exportLoadingType === 'regions' ? `Exporting ${exportSettings.format.toUpperCase()}...` : `Export ${exportSettings.format.toUpperCase()}` }}</button></div>
       <table class="table">
         <thead><tr><th>Region</th><th>Total Rides</th></tr></thead>
         <tbody>

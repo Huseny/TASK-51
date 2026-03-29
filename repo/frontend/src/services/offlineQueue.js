@@ -21,7 +21,17 @@ export const getPendingActions = async () => {
   return db.getAll(STORE_NAME)
 }
 
+export const getPendingActionsByOwner = async (ownerKey) => {
+  const all = await getPendingActions()
+  return all.filter((item) => item.owner_key === ownerKey)
+}
+
 export const removePendingAction = async (id) => {
   const db = await dbPromise
   await db.delete(STORE_NAME, id)
+}
+
+export const clearPendingActions = async () => {
+  const db = await dbPromise
+  await db.clear(STORE_NAME)
 }

@@ -110,7 +110,7 @@ Route::prefix('v1')->middleware('idempotency')->group(function (): void {
 
     Route::get('/media/{media}/download', [MediaController::class, 'download'])
         ->name('media.download')
-        ->middleware('media.access');
+        ->middleware(['media.access', 'token.not_expired', 'auth:sanctum']);
 
     Route::get('/reports/exports/{filename}', [ReportController::class, 'download'])
         ->name('reports.exports.download')

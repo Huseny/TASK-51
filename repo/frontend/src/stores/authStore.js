@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import api from '@/services/api'
+import api, { clearOfflineQueue } from '@/services/api'
 
 const TOKEN_KEY = 'roadlink_token'
 const USER_KEY = 'roadlink_user'
@@ -16,11 +16,17 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     persistSession(user, token) {
+      const previousUserId = this.user?.id
+
       this.user = user
       this.token = token
       this.isAuthenticated = true
       localStorage.setItem(TOKEN_KEY, token)
       localStorage.setItem(USER_KEY, JSON.stringify(user))
+
+      if (previousUserId && previousUserId !== user.id) {
+        clearOfflineQueue()
+      }
     },
 
     clearSession() {
@@ -30,6 +36,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
+      clearOfflineQueue()
     },
 
     forceLogout() {

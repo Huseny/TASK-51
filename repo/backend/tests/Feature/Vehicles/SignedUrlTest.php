@@ -28,9 +28,39 @@ class SignedUrlTest extends TestCase
         $parts = parse_url($url);
         $pathAndQuery = ($parts['path'] ?? '').'?'.($parts['query'] ?? '');
 
+        Sanctum::actingAs($owner);
         $download = $this->get($pathAndQuery);
         $download->assertStatus(200);
         $this->assertSame('image/jpeg', $download->headers->get('Content-Type'));
+    }
+
+    public function test_non_owner_is_denied_even_with_valid_signature(): void
+    {
+        Storage::fake('local');
+        [$owner, $media] = $this->seedVehicleMedia();
+        $outsider = User::factory()->create(['role' => 'driver']);
+
+        Sanctum::actingAs($owner);
+        $url = (string) $this->getJson('/api/v1/media/'.$media->id.'/url')->json('url');
+        $parts = parse_url($url);
+        $pathAndQuery = ($parts['path'] ?? '').'?'.($parts['query'] ?? '');
+
+        Sanctum::actingAs($outsider);
+        $this->get($pathAndQuery)
+            ->assertStatus(403)
+            ->assertJsonPath('error', 'forbidden');
+    }
+
+    public function test_valid_signature_without_authentication_is_denied(): void
+    {
+        Storage::fake('local');
+        [, $media] = $this->seedVehicleMedia();
+
+        $url = URL::temporarySignedRoute('media.download', now()->addMinutes(10), ['media' => $media->id]);
+        $parts = parse_url($url);
+        $pathAndQuery = ($parts['path'] ?? '').'?'.($parts['query'] ?? '');
+
+        $this->get($pathAndQuery)->assertStatus(401);
     }
 
     public function test_expired_signed_url_returns_403(): void
@@ -56,6 +86,23 @@ class SignedUrlTest extends TestCase
         $parts = parse_url($tampered);
 
         $this->get(($parts['path'] ?? '').'?'.($parts['query'] ?? ''))
+            ->assertStatus(403)
+            ->assertJsonPath('error', 'link_expired');
+    }
+
+    public function test_forged_referer_does_not_bypass_invalid_signature(): void
+    {
+        Storage::fake('local');
+        [, $media] = $this->seedVehicleMedia();
+        $user = User::factory()->create(['role' => 'driver']);
+        Sanctum::actingAs($user);
+
+        $url = URL::temporarySignedRoute('media.download', now()->addMinutes(10), ['media' => $media->id]);
+        $tampered = str_replace('signature=', 'signature=tampered', $url);
+        $parts = parse_url($tampered);
+
+        $this->withHeader('referer', 'http://localhost:3000/dashboard')
+            ->get(($parts['path'] ?? '').'?'.($parts['query'] ?? ''))
             ->assertStatus(403)
             ->assertJsonPath('error', 'link_expired');
     }

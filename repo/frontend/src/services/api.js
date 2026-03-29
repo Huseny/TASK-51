@@ -1,5 +1,10 @@
 import axios from 'axios'
-import { enqueuePendingAction, getPendingActions, removePendingAction } from '@/services/offlineQueue'
+import {
+  clearPendingActions,
+  enqueuePendingAction,
+  getPendingActionsByOwner,
+  removePendingAction,
+} from '@/services/offlineQueue'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
@@ -22,6 +27,20 @@ const makeIdempotencyKey = () => {
   }
 
   return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+const currentOwnerKey = () => {
+  const rawUser = localStorage.getItem('roadlink_user')
+  if (!rawUser) {
+    return 'anonymous'
+  }
+
+  try {
+    const parsed = JSON.parse(rawUser)
+    return parsed?.id ? `user:${parsed.id}` : 'anonymous'
+  } catch {
+    return 'anonymous'
+  }
 }
 
 const isOnline = () => {
@@ -78,12 +97,18 @@ const queuedResponse = (config) => ({
 })
 
 const queueMutation = async (config) => {
+  const idempotencyKey = config.headers?.['X-Idempotency-Key'] || makeIdempotencyKey()
+
   await enqueuePendingAction({
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     url: config.url,
     method: String(config.method).toUpperCase(),
     data: config.data ?? null,
-    headers: config.headers ?? {},
+    headers: {
+      'X-Idempotency-Key': idempotencyKey,
+      ...(config.headers?.['Content-Type'] ? { 'Content-Type': config.headers['Content-Type'] } : {}),
+    },
+    owner_key: currentOwnerKey(),
     timestamp: Date.now(),
   })
 
@@ -103,21 +128,35 @@ export const __setOnlineStateForTests = (value) => {
   forcedOnlineState = value
 }
 
+export const clearOfflineQueue = async () => {
+  await clearPendingActions()
+}
+
 export const syncPendingActions = async () => {
   if (!isOnline()) {
     return
   }
 
-  const pendingActions = await getPendingActions()
+  const pendingActions = await getPendingActionsByOwner(currentOwnerKey())
   pendingActions.sort((a, b) => a.timestamp - b.timestamp)
 
   for (const action of pendingActions) {
     try {
+      const token = localStorage.getItem('roadlink_token')
+      if (!token) {
+        break
+      }
+
+      const replayHeaders = {
+        ...(action.headers || {}),
+        Authorization: `Bearer ${token}`,
+      }
+
       await sendOnline({
         url: action.url,
         method: action.method,
         data: action.data,
-        headers: action.headers,
+        headers: replayHeaders,
       })
 
       await removePendingAction(action.id)
