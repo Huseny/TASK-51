@@ -30,14 +30,12 @@ const registerUser = async (request, { role, prefix }) => {
   }
 }
 
-const setSession = async (page, user, token) => {
-  await page.addInitScript(
-    ({ sessionUser, sessionToken }) => {
-      localStorage.setItem('roadlink_user', JSON.stringify(sessionUser))
-      localStorage.setItem('roadlink_token', sessionToken)
-    },
-    { sessionUser: user, sessionToken: token },
-  )
+const loginThroughUi = async (page, { username, password }) => {
+  await page.goto(`${WEB_BASE}/login`)
+  await page.getByLabel('Username').fill(username)
+  await page.getByLabel('Password').fill(password)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
 }
 
 test('ride lifecycle + report export with auth boundaries', async ({ request, page }) => {
@@ -133,7 +131,7 @@ test('ride lifecycle + report export with auth boundaries', async ({ request, pa
   })
   expect(authorizedExport.status()).toBe(200)
 
-  await setSession(page, rider.user, rider.token)
+  await loginThroughUi(page, rider)
   await page.goto(`${WEB_BASE}/reports`)
   await expect(page).toHaveURL(/\/dashboard$/)
 })

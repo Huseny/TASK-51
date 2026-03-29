@@ -61,6 +61,11 @@ Expected behavior:
 - exits non-zero when Playwright fails or services are unreachable
 - uses `E2E_WEB_URL` (default `http://127.0.0.1:3000`) and `E2E_API_URL` (default `http://127.0.0.1:8000/api/v1`)
 
+Auth behavior:
+
+- SPA auth uses secure cookie-backed session (`auth:sanctum`) with CSRF protection
+- backend must expose `GET /sanctum/csrf-cookie` and allow credentials from frontend origin
+
 If backend/runtime is unavailable in your environment, use:
 
 ```bash
@@ -85,10 +90,8 @@ docker compose up --build frontend
 - Full stack end-to-end verification depends on backend + MySQL running.
 - Offline queue replay and service worker behavior are integration-tested at service/unit level in Vitest; browser-level SW assertions are not fully simulated in jsdom.
 
-## Security Note (Token Storage)
+## Security Note (Session Auth)
 
-- Current implementation stores the access token in `localStorage` for compatibility with existing SPA auth flow.
-- Session clear/logout now removes token, cached user, unread counters, toast state, and queued offline mutations.
-- Frontend code does not intentionally log auth tokens in console/debug output.
-- Residual risk: token remains accessible to same-origin JavaScript if XSS exists.
-- Recommended future migration: move to HttpOnly secure cookie/session-based auth with CSRF protection to reduce token exposure surface.
+- Frontend no longer persists access tokens in `localStorage`.
+- Auth now relies on HttpOnly cookie sessions and CSRF-protected requests.
+- Session clear/logout removes cached user, unread counters, toast state, and queued offline mutations.

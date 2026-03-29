@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/authStore'
-import api, { clearOfflineQueue } from '@/services/api'
+import api, { clearOfflineQueue, ensureCsrfCookie } from '@/services/api'
 
 vi.mock('@/services/api', () => ({
   default: {
@@ -9,6 +9,7 @@ vi.mock('@/services/api', () => ({
     get: vi.fn(),
   },
   clearOfflineQueue: vi.fn(),
+  ensureCsrfCookie: vi.fn(),
 }))
 
 describe('authStore', () => {
@@ -18,11 +19,11 @@ describe('authStore', () => {
     vi.clearAllMocks()
   })
 
-  it('login action sets user and token on success', async () => {
+  it('login action sets authenticated session on success', async () => {
+    ensureCsrfCookie.mockResolvedValueOnce({})
     api.post.mockResolvedValueOnce({
       data: {
         user: { id: 1, username: 'rider01', role: 'rider' },
-        token: 'token-abc',
       },
     })
 
@@ -31,8 +32,8 @@ describe('authStore', () => {
 
     expect(result.success).toBe(true)
     expect(store.user.username).toBe('rider01')
-    expect(store.token).toBe('token-abc')
-    expect(localStorage.getItem('roadlink_token')).toBe('token-abc')
+    expect(store.isAuthenticated).toBe(true)
+    expect(localStorage.getItem('roadlink_user')).toContain('rider01')
   })
 
   it('login action sets error on failure', async () => {
@@ -52,25 +53,23 @@ describe('authStore', () => {
   it('logout action clears state and localStorage', async () => {
     api.post.mockResolvedValueOnce({ data: { message: 'Logged out successfully' } })
     const store = useAuthStore()
-    store.persistSession({ id: 1, username: 'driver01', role: 'driver' }, 'token-1')
+    store.persistSession({ id: 1, username: 'driver01', role: 'driver' })
 
     await store.logout()
 
     expect(store.user).toBeNull()
-    expect(store.token).toBeNull()
-    expect(localStorage.getItem('roadlink_token')).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
+    expect(localStorage.getItem('roadlink_user')).toBeNull()
     expect(clearOfflineQueue).toHaveBeenCalled()
   })
 
-  it('initialize restores from localStorage', async () => {
-    localStorage.setItem('roadlink_token', 'persisted-token')
+  it('initialize restores session-backed user', async () => {
     localStorage.setItem('roadlink_user', JSON.stringify({ id: 5, username: 'fleet01', role: 'fleet_manager' }))
     api.get.mockResolvedValueOnce({ data: { user: { id: 5, username: 'fleet01', role: 'fleet_manager' } } })
 
     const store = useAuthStore()
     await store.initialize()
 
-    expect(store.token).toBe('persisted-token')
     expect(store.user.username).toBe('fleet01')
     expect(store.isAuthenticated).toBe(true)
   })
@@ -78,8 +77,8 @@ describe('authStore', () => {
   it('switching authenticated user clears offline queue', () => {
     const store = useAuthStore()
 
-    store.persistSession({ id: 1, username: 'rider01', role: 'rider' }, 'token-a')
-    store.persistSession({ id: 2, username: 'driver01', role: 'driver' }, 'token-b')
+    store.persistSession({ id: 1, username: 'rider01', role: 'rider' })
+    store.persistSession({ id: 2, username: 'driver01', role: 'driver' })
 
     expect(clearOfflineQueue).toHaveBeenCalled()
   })
@@ -90,11 +89,11 @@ describe('authStore', () => {
     sessionStorage.setItem('roadlink_toast_message', 'toast')
     sessionStorage.setItem('roadlink_toast_type', 'error')
 
-    store.persistSession({ id: 3, username: 'admin01', role: 'admin' }, 'token-admin')
+    store.persistSession({ id: 3, username: 'admin01', role: 'admin' })
     store.forceLogout()
 
     expect(store.user).toBeNull()
-    expect(store.token).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
     expect(localStorage.getItem('roadlink_chat_unread_total')).toBeNull()
     expect(sessionStorage.getItem('roadlink_toast_message')).toBeNull()
     expect(sessionStorage.getItem('roadlink_toast_type')).toBeNull()

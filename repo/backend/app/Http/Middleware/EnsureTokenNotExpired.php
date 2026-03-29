@@ -27,17 +27,6 @@ class EnsureTokenNotExpired
             }
         }
 
-        $currentToken = $request->user()?->currentAccessToken();
-
-        if ($currentToken && $currentToken->expires_at && $currentToken->expires_at->isPast()) {
-            $currentToken->delete();
-
-            return response()->json([
-                'error' => 'token_expired',
-                'message' => 'Your session has expired. Please login again.',
-            ], 401);
-        }
-
         return $next($request);
     }
 }

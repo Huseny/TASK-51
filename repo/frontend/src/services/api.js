@@ -7,15 +7,18 @@ import {
 } from '@/services/offlineQueue'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const API_ORIGIN = new URL(API_URL).origin
 
 const transport = axios.create({
   baseURL: API_URL,
   timeout: 15000,
+  withCredentials: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
 let forcedOnlineState = null
 let unauthorizedHandler = () => {
-  localStorage.removeItem('roadlink_token')
   localStorage.removeItem('roadlink_user')
 }
 
@@ -57,11 +60,6 @@ const isOnline = () => {
 
 const buildHeaders = (method, existingHeaders = {}) => {
   const headers = { ...existingHeaders }
-  const token = localStorage.getItem('roadlink_token')
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
 
   if (isMutatingMethod(method) && !headers['X-Idempotency-Key']) {
     headers['X-Idempotency-Key'] = makeIdempotencyKey()
@@ -136,6 +134,13 @@ export const clearOfflineQueue = async () => {
   await clearPendingActions()
 }
 
+export const ensureCsrfCookie = async () => {
+  await axios.get(`${API_ORIGIN}/sanctum/csrf-cookie`, {
+    withCredentials: true,
+    timeout: 15000,
+  })
+}
+
 export const syncPendingActions = async () => {
   if (!isOnline()) {
     return
@@ -146,21 +151,11 @@ export const syncPendingActions = async () => {
 
   for (const action of pendingActions) {
     try {
-      const token = localStorage.getItem('roadlink_token')
-      if (!token) {
-        break
-      }
-
-      const replayHeaders = {
-        ...(action.headers || {}),
-        Authorization: `Bearer ${token}`,
-      }
-
       await sendOnline({
         url: action.url,
         method: action.method,
         data: action.data,
-        headers: replayHeaders,
+        headers: action.headers || {},
       })
 
       await removePendingAction(action.id)

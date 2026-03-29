@@ -1,27 +1,23 @@
 import { defineStore } from 'pinia'
-import api, { clearOfflineQueue } from '@/services/api'
+import api, { clearOfflineQueue, ensureCsrfCookie } from '@/services/api'
 
-const TOKEN_KEY = 'roadlink_token'
 const USER_KEY = 'roadlink_user'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: localStorage.getItem(TOKEN_KEY),
-    isAuthenticated: Boolean(localStorage.getItem(TOKEN_KEY)),
+    isAuthenticated: false,
     isLoading: false,
     error: '',
     initialized: false,
   }),
 
   actions: {
-    persistSession(user, token) {
+    persistSession(user) {
       const previousUserId = this.user?.id
 
       this.user = user
-      this.token = token
       this.isAuthenticated = true
-      localStorage.setItem(TOKEN_KEY, token)
       localStorage.setItem(USER_KEY, JSON.stringify(user))
 
       if (previousUserId && previousUserId !== user.id) {
@@ -31,10 +27,8 @@ export const useAuthStore = defineStore('auth', {
 
     clearSession() {
       this.user = null
-      this.token = null
       this.isAuthenticated = false
       this.error = ''
-      localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
       localStorage.removeItem('roadlink_chat_unread_total')
       sessionStorage.removeItem('roadlink_toast_message')
@@ -52,8 +46,9 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
 
       try {
+        await ensureCsrfCookie()
         const response = await api.post('/auth/login', { username, password })
-        this.persistSession(response.data.user, response.data.token)
+        this.persistSession(response.data.user)
         return { success: true }
       } catch (error) {
         const payload = error.response?.data || {}
@@ -74,8 +69,9 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
 
       try {
+        await ensureCsrfCookie()
         const response = await api.post('/auth/register', data)
-        this.persistSession(response.data.user, response.data.token)
+        this.persistSession(response.data.user)
         return { success: true }
       } catch (error) {
         const payload = error.response?.data || {}
@@ -99,10 +95,6 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async fetchMe() {
-      if (!this.token) {
-        return false
-      }
-
       try {
         const response = await api.get('/auth/me')
         this.user = response.data.user
@@ -125,9 +117,8 @@ export const useAuthStore = defineStore('auth', {
         this.user = JSON.parse(cachedUser)
       }
 
-      if (this.token) {
-        await this.fetchMe()
-      } else {
+      const loaded = await this.fetchMe()
+      if (!loaded) {
         this.clearSession()
       }
 

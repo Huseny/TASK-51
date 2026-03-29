@@ -33,7 +33,6 @@ describe('api offline queue', () => {
   it('queues mutating request when offline and resolves optimistically', async () => {
     const { default: api, __setOnlineStateForTests } = await import('@/services/api')
     __setOnlineStateForTests(false)
-    localStorage.setItem('roadlink_token', 'token-offline')
     localStorage.setItem('roadlink_user', JSON.stringify({ id: 11 }))
 
     const response = await api.post('/ride-orders/1/transition', { action: 'start' })
@@ -48,10 +47,9 @@ describe('api offline queue', () => {
     expect(requestMock).not.toHaveBeenCalled()
   })
 
-  it('syncs queued requests using current token and clears queue item', async () => {
+  it('syncs queued requests using credentialed session and clears queue item', async () => {
     const { syncPendingActions, __setOnlineStateForTests } = await import('@/services/api')
     __setOnlineStateForTests(true)
-    localStorage.setItem('roadlink_token', 'token-current-user')
     localStorage.setItem('roadlink_user', JSON.stringify({ id: 99 }))
 
     getPendingActionsByOwner.mockResolvedValueOnce([
@@ -73,7 +71,7 @@ describe('api offline queue', () => {
       url: '/group-chats/7/messages',
       method: 'POST',
       data: { content: 'hello' },
-      headers: { 'X-Idempotency-Key': 'abc', Authorization: 'Bearer token-current-user' },
+      headers: { 'X-Idempotency-Key': 'abc' },
     })
     expect(removePendingAction).toHaveBeenCalledWith('q1')
   })
@@ -87,7 +85,6 @@ describe('api offline queue', () => {
   it('does not replay another users queued actions', async () => {
     const { syncPendingActions, __setOnlineStateForTests } = await import('@/services/api')
     __setOnlineStateForTests(true)
-    localStorage.setItem('roadlink_token', 'token-user-b')
     localStorage.setItem('roadlink_user', JSON.stringify({ id: 202 }))
 
     getPendingActionsByOwner.mockResolvedValueOnce([])

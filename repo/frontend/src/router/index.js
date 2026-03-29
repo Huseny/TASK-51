@@ -181,11 +181,11 @@ router.beforeEach(async (to) => {
   const requiresAuth = to.meta.requiresAuth
   const isPublic = to.meta.public
 
-  if (requiresAuth && !authStore.token) {
+  if (requiresAuth && !authStore.isAuthenticated) {
     return { path: '/login' }
   }
 
-  if (authStore.token && isPublic) {
+  if (authStore.isAuthenticated && isPublic) {
     return { path: '/dashboard' }
   }
 

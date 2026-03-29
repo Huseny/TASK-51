@@ -21,7 +21,8 @@ class AuthorizationTest extends TestCase
     public function test_unauthenticated_request_to_protected_route_returns_401(): void
     {
         $this->getJson('/api/v1/auth/me')
-            ->assertStatus(401);
+            ->assertStatus(401)
+            ->assertJsonPath('error', 'unauthenticated');
     }
 
     public function test_rider_cannot_access_driver_only_route(): void

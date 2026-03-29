@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Throwable;
 
@@ -71,6 +72,26 @@ class Handler
                 'message' => 'Too many requests, please try again later',
                 'details' => (object) [],
             ], 429);
+        }
+
+        if ($exception instanceof HttpExceptionInterface) {
+            $status = $exception->getStatusCode();
+
+            if ($status === 401) {
+                return response()->json([
+                    'error' => 'unauthenticated',
+                    'message' => 'Authentication is required to access this resource',
+                    'details' => (object) [],
+                ], 401);
+            }
+
+            if ($status === 403) {
+                return response()->json([
+                    'error' => 'forbidden',
+                    'message' => 'You are not authorized to perform this action',
+                    'details' => (object) [],
+                ], 403);
+            }
         }
 
         return response()->json([

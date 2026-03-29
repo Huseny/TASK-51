@@ -33,7 +33,9 @@ bash scripts/verify-local.sh
 2. `php artisan key:generate` returns success and sets `APP_KEY`.
 3. `php artisan migrate:fresh --seed` completes with all migrations/seeders applied.
 4. `php artisan test` finishes with all tests passing.
-5. Quick smoke endpoint check: `GET /api/v1/auth/me` without token returns `401`.
+5. Quick smoke endpoint checks:
+   - `GET /api/v1/auth/me` without token returns `401` JSON.
+   - `GET /api/v1/reports/trends` without token returns `401` JSON.
 
 If any step fails, confirm DB connectivity (`DB_*` values in `.env`) and required PHP extensions.
 
