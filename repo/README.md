@@ -96,6 +96,11 @@ docker compose run --rm frontend npm run test
 - `GET /api/v1/driver/my-rides` (driver/admin)
 - `GET /api/v1/driver/my-rides/{id}` (driver/admin)
 - `PATCH /api/v1/ride-orders/{id}/transition` (driver actions: `accept`, `start`, `complete`, `flag_exception`)
+- `POST /api/v1/vehicles`
+- `GET /api/v1/vehicles`
+- `GET /api/v1/vehicles/{id}`
+- `POST /api/v1/vehicles/{id}/media`
+- `GET /api/v1/media/{id}/url`
 
 ## Ride Order Automation
 
@@ -110,3 +115,10 @@ docker compose run --rm frontend npm run test
 - Polling-based APIs are used (no WebSockets).
 - Read receipts are always enabled.
 - DND windows currently use **server timezone**.
+
+## Vehicle Media Management
+
+- Media files are stored on local disk under `storage/app/media`.
+- SHA-256 deduplication is enabled across uploads.
+- Signed URLs are required for media download access.
+- Compression jobs run through queue (`ProcessMediaAsset`), with graceful FFmpeg fallback for videos.

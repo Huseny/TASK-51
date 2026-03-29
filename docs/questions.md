@@ -34,3 +34,18 @@
    - **Question**: Should DND use server timezone or user timezone?
    - **My Understanding**: Use server timezone for now to keep offline logic deterministic.
    - **Solution**: Implemented DND window checks using server time in `DndService` and documented this behavior.
+
+8. [Media Asset Deletion Strategy]
+   - **Question**: Should media assets be hard-deleted or soft-deleted?
+   - **My Understanding**: Soft-delete media assets so deduplicated references remain valid and recoverable.
+   - **Solution**: Added `deleted_at` on `media_assets` and only remove `vehicle_media` pivot rows when media is detached from a vehicle.
+
+9. [Extension vs MIME Mismatch]
+   - **Question**: Should extension vs MIME mismatch (e.g., `.jpg` filename with PNG bytes) be rejected?
+   - **My Understanding**: For JPEG/PNG family mismatches, accept if MIME is valid image type and log warning.
+   - **Solution**: Validated allowed MIME + extension set, tolerated JPEG/PNG mismatch by MIME with warning log, and normalized storage extension from MIME.
+
+10. [Shared Inventory Scope]
+   - **Question**: For `shared` inventory strategy, is stock tracked per variant or pooled across shared variants of the same product?
+   - **My Understanding**: Shared inventory is pooled across all `shared` variants belonging to a single product.
+   - **Solution**: Implemented pooled stock checks/decrements across all locked `shared` variants under the same product during purchase.

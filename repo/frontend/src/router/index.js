@@ -4,6 +4,11 @@ import DriverAvailableRidesPage from '@/pages/driver/DriverAvailableRidesPage.vu
 import DriverMyRidesPage from '@/pages/driver/DriverMyRidesPage.vue'
 import DriverRideDetailPage from '@/pages/driver/DriverRideDetailPage.vue'
 import RideChatPage from '@/pages/chat/RideChatPage.vue'
+import ProductManagerPage from '@/pages/products/ProductManagerPage.vue'
+import ShopProductDetailPage from '@/pages/products/ShopProductDetailPage.vue'
+import ShopProductListPage from '@/pages/products/ShopProductListPage.vue'
+import VehicleDetailPage from '@/pages/vehicles/VehicleDetailPage.vue'
+import VehicleListPage from '@/pages/vehicles/VehicleListPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
 import RiderTripDetailPage from '@/pages/rider/RiderTripDetailPage.vue'
@@ -99,6 +104,51 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         roles: ['driver', 'admin'],
+      },
+    },
+    {
+      path: '/vehicles',
+      name: 'vehicles',
+      component: VehicleListPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['driver', 'fleet_manager', 'admin'],
+      },
+    },
+    {
+      path: '/vehicles/:id',
+      name: 'vehicle-detail',
+      component: VehicleDetailPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['driver', 'fleet_manager', 'admin'],
+      },
+    },
+    {
+      path: '/products/manage',
+      name: 'products-manage',
+      component: ProductManagerPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['fleet_manager', 'admin'],
+      },
+    },
+    {
+      path: '/shop/products',
+      name: 'shop-products',
+      component: ShopProductListPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['rider', 'driver', 'admin'],
+      },
+    },
+    {
+      path: '/shop/products/:id',
+      name: 'shop-product-detail',
+      component: ShopProductDetailPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['rider', 'driver', 'admin'],
       },
     },
   ],

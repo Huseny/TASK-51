@@ -3,7 +3,10 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DriverRideController;
 use App\Http\Controllers\Api\V1\GroupChatController;
+use App\Http\Controllers\Api\V1\MediaController;
+use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RideOrderController;
+use App\Http\Controllers\Api\V1\VehicleController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -45,4 +48,39 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/group-chats/{chat}/read', [GroupChatController::class, 'markRead']);
         Route::patch('/group-chats/{chat}/dnd', [GroupChatController::class, 'updateDnd']);
     });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum', 'role:driver,fleet_manager,admin'])->group(function (): void {
+        Route::post('/vehicles', [VehicleController::class, 'store']);
+        Route::get('/vehicles', [VehicleController::class, 'index']);
+        Route::get('/vehicles/{vehicle}', [VehicleController::class, 'show']);
+        Route::put('/vehicles/{vehicle}', [VehicleController::class, 'update']);
+        Route::delete('/vehicles/{vehicle}', [VehicleController::class, 'destroy']);
+
+        Route::post('/vehicles/{vehicle}/media', [VehicleController::class, 'uploadMedia']);
+        Route::patch('/vehicles/{vehicle}/media/reorder', [VehicleController::class, 'reorderMedia']);
+        Route::patch('/vehicles/{vehicle}/media/{mediaId}/cover', [VehicleController::class, 'setCover']);
+        Route::delete('/vehicles/{vehicle}/media/{mediaId}', [VehicleController::class, 'removeMedia']);
+
+        Route::get('/media/{media}/url', [MediaController::class, 'url']);
+    });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum'])->group(function (): void {
+        Route::get('/products', [ProductController::class, 'index']);
+        Route::get('/products/{product}', [ProductController::class, 'show']);
+    });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum', 'role:fleet_manager,admin'])->group(function (): void {
+        Route::post('/products', [ProductController::class, 'store']);
+        Route::put('/products/{product}', [ProductController::class, 'update']);
+        Route::patch('/products/{product}/publish', [ProductController::class, 'publish']);
+        Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+    });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum', 'role:rider,driver'])->group(function (): void {
+        Route::post('/products/{product}/purchase', [ProductController::class, 'purchase']);
+    });
+
+    Route::get('/media/{media}/download', [MediaController::class, 'download'])
+        ->name('media.download')
+        ->middleware('media.access');
 });

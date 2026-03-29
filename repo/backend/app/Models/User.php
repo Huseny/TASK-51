@@ -75,4 +75,24 @@ class User extends Authenticatable
     {
         return $this->hasMany(GroupMessage::class, 'sender_id');
     }
+
+    public function vehicles(): HasMany
+    {
+        return $this->hasMany(Vehicle::class, 'owner_id');
+    }
+
+    public function uploadedMediaAssets(): HasMany
+    {
+        return $this->hasMany(MediaAsset::class, 'uploaded_by');
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class, 'seller_id');
+    }
+
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(PurchaseRecord::class);
+    }
 }

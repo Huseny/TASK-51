@@ -3,6 +3,7 @@
 use App\Exceptions\Handler;
 use App\Http\Middleware\EnsureTokenNotExpired;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\ValidateMediaAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'token.not_expired' => EnsureTokenNotExpired::class,
+            'media.access' => ValidateMediaAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
