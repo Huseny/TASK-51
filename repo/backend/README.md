@@ -2,14 +2,36 @@
 
 ## Local Non-Docker Verification
 
-### Prerequisites
+### Path A: Run tests only (default SQLite in-memory)
+
+Use this path for default automated verification.
+
+`php artisan test` uses SQLite in-memory by default via `phpunit.xml`:
+
+- `DB_CONNECTION=sqlite`
+- `DB_DATABASE=:memory:`
+
+From `repo/backend`:
+
+```bash
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan test
+```
+
+MySQL is not required for this default test path.
+
+### Path B: Run app locally with MySQL (manual runtime/API verification)
+
+Use this path when you want to run the backend server and manually verify API behavior against a local MySQL instance.
+
+Prerequisites:
 
 - PHP 8.2+
 - Composer 2+
 - MySQL 8+
 - PHP extensions: `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`
-
-### Bootstrap + migrate + test
 
 From `repo/backend`:
 
@@ -18,7 +40,13 @@ cp .env.example .env
 composer install
 php artisan key:generate
 php artisan migrate:fresh --seed
-php artisan test
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Optional: if you want MySQL-backed tests instead of default SQLite in-memory, override DB env vars for the test command, for example:
+
+```bash
+DB_CONNECTION=mysql DB_DATABASE=your_test_db DB_USERNAME=your_user DB_PASSWORD=your_password php artisan test
 ```
 
 Or run the bundled verification script:

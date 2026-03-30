@@ -31,6 +31,22 @@ npm run test
 npm run build
 ```
 
+### Windows PowerShell Troubleshooting
+
+Symptom:
+
+- `npm.ps1 cannot be loaded because running scripts is disabled`
+
+Fallback (PowerShell) commands:
+
+```bash
+npm.cmd run test
+npm.cmd run build
+npm.cmd run test:e2e
+```
+
+This is fallback guidance only; default `npm run ...` commands remain the primary flow.
+
 ## Executable E2E (Playwright)
 
 Critical lifecycle, cache-isolation, offline-replay, and notification-scenario flows are automated in `tests/e2e/ride-lifecycle-and-reports.e2e.spec.js`.
