@@ -19,7 +19,7 @@ class NotificationScenarioRequest extends FormRequest
         return [
             'scenario' => ['required', 'in:comment,reply,mention,follower,moderation,announcement'],
             'recipient_id' => ['required', 'integer', 'exists:users,id'],
-            'ride_id' => ['nullable', 'integer', 'exists:ride_orders,id'],
+            'ride_id' => ['required_if:scenario,comment,reply,mention', 'nullable', 'integer', 'exists:ride_orders,id'],
             'entity_type' => ['nullable', 'string', 'max:40'],
             'entity_id' => ['nullable', 'integer'],
             'message' => ['nullable', 'string', 'max:255'],

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DriverRideController;
+use App\Http\Controllers\Api\V1\FollowController;
 use App\Http\Controllers\Api\V1\GroupChatController;
 use App\Http\Controllers\Api\V1\InteractionController;
 use App\Http\Controllers\Api\V1\MediaController;
@@ -83,7 +84,9 @@ Route::prefix('v1')->middleware('idempotency')->group(function (): void {
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
         Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
-        Route::post('/notifications/events', [NotificationScenarioController::class, 'store']);
+        Route::post('/notifications/events', [NotificationScenarioController::class, 'store'])->middleware('throttle:20,1');
+
+        Route::post('/follows', [FollowController::class, 'store']);
 
         Route::get('/notification-subscriptions', [NotificationSubscriptionController::class, 'index']);
         Route::post('/notification-subscriptions', [NotificationSubscriptionController::class, 'store']);

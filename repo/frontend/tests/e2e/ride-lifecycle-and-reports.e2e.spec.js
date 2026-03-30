@@ -333,9 +333,11 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
   await ensureServicesOrSkip(request)
 
   const recipient = await registerUser(request, { role: 'rider', prefix: 'e2e_notify_recipient' })
+  const commenter = await registerUser(request, { role: 'driver', prefix: 'e2e_notify_commenter' })
   const moderator = await registerUser(request, { role: 'fleet_manager', prefix: 'e2e_notify_moderator' })
 
   const recipientApi = await createSessionClient(playwright, recipient)
+  const commenterApi = await createSessionClient(playwright, commenter)
   const moderatorApi = await createSessionClient(playwright, moderator)
   let recipientCookies = []
 
@@ -345,7 +347,30 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
     const mePayload = await meRes.json()
     const recipientId = mePayload.user.id
 
-    const createEvent = async (scenario, message = '') => {
+    const createRide = await postAsSession(recipientApi, '/ride-orders', {
+      origin_address: `Notify Origin ${randomSuffix()}`,
+      destination_address: `Notify Destination ${randomSuffix()}`,
+      rider_count: 1,
+      ...timeWindowPayload(),
+      notes: 'notification scenario context',
+    })
+    expect(createRide.status()).toBe(201)
+    const rideId = (await createRide.json()).order.id
+
+    const acceptRide = await patchAsSession(commenterApi, `/ride-orders/${rideId}/transition`, { action: 'accept' })
+    expect(acceptRide.status()).toBe(200)
+
+    const createEventFromCommenter = async (scenario) => {
+      const response = await postAsSession(commenterApi, '/notifications/events', {
+        scenario,
+        recipient_id: recipientId,
+        ride_id: rideId,
+      })
+
+      expect(response.status()).toBe(201)
+    }
+
+    const createModeratorEvent = async (scenario, message = '') => {
       const response = await postAsSession(moderatorApi, '/notifications/events', {
         scenario,
         recipient_id: recipientId,
@@ -355,17 +380,29 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
       expect(response.status()).toBe(201)
     }
 
-    await createEvent('comment')
-    await createEvent('reply')
-    await createEvent('reply')
-    await createEvent('mention')
-    await createEvent('follower')
-    await createEvent('moderation', 'Content review completed')
-    await createEvent('announcement', 'Platform update available')
+    await createEventFromCommenter('comment')
+    await createEventFromCommenter('reply')
+    await createEventFromCommenter('reply')
+    await createEventFromCommenter('mention')
+
+    const followResponse = await postAsSession(commenterApi, '/notification-subscriptions', {
+      entity_type: 'follow_user',
+      entity_id: recipientId,
+    })
+    expect(followResponse.status()).toBe(201)
+
+    const followerEvent = await postAsSession(commenterApi, '/notifications/events', {
+      scenario: 'follower',
+      recipient_id: recipientId,
+    })
+    expect(followerEvent.status()).toBe(201)
+
+    await createModeratorEvent('moderation', 'Content review completed')
+    await createModeratorEvent('announcement', 'Platform update available')
 
     recipientCookies = (await recipientApi.storageState()).cookies
   } finally {
-    await closeContexts([recipientApi, moderatorApi])
+    await closeContexts([recipientApi, commenterApi, moderatorApi])
   }
 
   await page.context().addCookies(recipientCookies)
