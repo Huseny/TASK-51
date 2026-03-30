@@ -22,8 +22,10 @@ const filters = ref({
 
 const exportSettings = ref({
   format: 'csv',
-  destination: 'default',
+  directoryId: 'default',
 })
+
+const exportDirectories = ref([])
 
 const trends = ref({ labels: [], datasets: [{ label: 'Rides', data: [] }] })
 const distribution = ref({ labels: [], datasets: [{ label: 'Ride Status', data: [] }] })
@@ -54,17 +56,23 @@ const fetchAll = async () => {
   isLoading.value = true
 
   try {
-    const [trendsRes, distributionRes, regionsRes, templatesRes] = await Promise.all([
+    const [trendsRes, distributionRes, regionsRes, templatesRes, exportDirsRes] = await Promise.all([
       api.get('/reports/trends', { params: filters.value }),
       api.get('/reports/distribution', { params: filters.value }),
       api.get('/reports/regions', { params: filters.value }),
       api.get('/reports/templates'),
+      api.get('/reports/export-directories'),
     ])
 
     trends.value = trendsRes.data
     distribution.value = distributionRes.data
     regions.value = regionsRes.data.data || []
     templates.value = templatesRes.data.data || []
+    exportDirectories.value = exportDirsRes.data.data || []
+
+    if (!exportDirectories.value.some((entry) => entry.id === exportSettings.value.directoryId)) {
+      exportSettings.value.directoryId = exportDirectories.value[0]?.id || 'default'
+    }
   } catch (err) {
     error.value = err.response?.data?.message || 'Could not load reports.'
     sessionStorage.setItem('roadlink_toast_message', error.value)
@@ -81,7 +89,7 @@ const exportReport = async (type) => {
     const response = await api.post('/reports/export', {
       type,
       format: exportSettings.value.format,
-      destination: exportSettings.value.destination,
+      directory_id: exportSettings.value.directoryId,
       filters: filters.value,
     })
 
@@ -159,8 +167,16 @@ onMounted(fetchAll)
           </select>
         </label>
         <label>
-          Export Destination
-          <input v-model="exportSettings.destination" placeholder="default">
+          Export Directory
+          <select v-model="exportSettings.directoryId">
+            <option
+              v-for="directory in exportDirectories"
+              :key="directory.id"
+              :value="directory.id"
+            >
+              {{ directory.label }}
+            </option>
+          </select>
         </label>
         <button class="btn" :disabled="isLoading" @click="fetchAll">{{ isLoading ? 'Loading...' : 'Apply' }}</button>
       </div>

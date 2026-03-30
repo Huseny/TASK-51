@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\GroupChatController;
 use App\Http\Controllers\Api\V1\InteractionController;
 use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\NotificationScenarioController;
 use App\Http\Controllers\Api\V1\NotificationSubscriptionController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RecommendationController;
@@ -82,6 +83,7 @@ Route::prefix('v1')->middleware('idempotency')->group(function (): void {
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
         Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::post('/notifications/events', [NotificationScenarioController::class, 'store']);
 
         Route::get('/notification-subscriptions', [NotificationSubscriptionController::class, 'index']);
         Route::post('/notification-subscriptions', [NotificationSubscriptionController::class, 'store']);
@@ -103,6 +105,7 @@ Route::prefix('v1')->middleware('idempotency')->group(function (): void {
         Route::get('/trends', [ReportController::class, 'trends']);
         Route::get('/distribution', [ReportController::class, 'distribution']);
         Route::get('/regions', [ReportController::class, 'regions']);
+        Route::get('/export-directories', [ReportController::class, 'exportDirectories']);
         Route::post('/export', [ReportController::class, 'export']);
 
         Route::get('/templates', [ReportController::class, 'templates']);

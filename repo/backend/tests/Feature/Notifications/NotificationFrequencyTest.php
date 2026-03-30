@@ -100,4 +100,22 @@ class NotificationFrequencyTest extends TestCase
         $this->assertDatabaseHas('notification_frequency_logs', ['priority' => 'normal', 'type' => 'reply']);
         $this->assertDatabaseHas('notification_frequency_logs', ['priority' => 'high']);
     }
+
+    public function test_normal_cap_applies_to_comment_type_independently(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-29 12:15:00'));
+        $user = User::factory()->create(['role' => 'rider']);
+        $service = app(NotificationService::class);
+
+        for ($i = 0; $i < 21; $i++) {
+            $service->send($user, 'order_update', 'New comment', 'Comment update');
+        }
+
+        for ($i = 0; $i < 20; $i++) {
+            $service->send($user, 'follower', 'New follower', 'Follower update');
+        }
+
+        $this->assertSame(20, Notification::query()->where('user_id', $user->id)->where('type', 'order_update')->count());
+        $this->assertSame(20, Notification::query()->where('user_id', $user->id)->where('type', 'follower')->count());
+    }
 }

@@ -15,8 +15,10 @@ class RecommendationAlgorithmTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_recommendation_job_enforces_diversity_and_epsilon_and_versioning(): void
+    public function test_recommendation_job_enforces_diversity_and_persists_epsilon_metadata(): void
     {
+        config()->set('roadlink.recommendations.epsilon', 1.0);
+
         $userA = User::factory()->create(['role' => 'rider']);
         $userB = User::factory()->create(['role' => 'rider']);
 
@@ -63,7 +65,10 @@ class RecommendationAlgorithmTest extends TestCase
             ->get();
 
         $this->assertCount(10, $results);
-        $this->assertSame(1, $results->where('is_exploration', true)->count());
+        $this->assertGreaterThan(0, $results->where('is_exploration', true)->count());
+        $this->assertSame('epsilon_greedy', $firstModel->feature_snapshot['policy']);
+        $this->assertSame(1.0, (float) $firstModel->feature_snapshot['epsilon']);
+        $this->assertSame(2, (int) $firstModel->feature_snapshot['max_items_per_seller']);
 
         $sellerCounts = [];
         foreach ($results as $result) {
@@ -83,5 +88,45 @@ class RecommendationAlgorithmTest extends TestCase
             'id' => $firstModel->id,
             'is_active' => false,
         ]);
+    }
+
+    public function test_epsilon_can_disable_exploration_when_set_to_zero(): void
+    {
+        config()->set('roadlink.recommendations.epsilon', 0.0);
+
+        $user = User::factory()->create(['role' => 'rider']);
+        $sellers = User::factory()->count(5)->create(['role' => 'fleet_manager']);
+
+        for ($i = 0; $i < 20; $i++) {
+            Product::factory()->create([
+                'seller_id' => $sellers[$i % 5]->id,
+                'is_published' => true,
+                'category' => 'snack',
+                'tags' => ['energy'],
+            ]);
+        }
+
+        UserInteraction::query()->create([
+            'user_id' => $user->id,
+            'item_id' => Product::query()->firstOrFail()->id,
+            'interaction_type' => 'view',
+            'score' => 1.0,
+            'created_at' => now(),
+        ]);
+
+        ComputeRecommendations::dispatchSync();
+
+        $model = RecommendationModel::query()->where('is_active', true)->firstOrFail();
+
+        $this->assertSame(0.0, (float) $model->feature_snapshot['epsilon']);
+
+        $this->assertSame(
+            0,
+            RecommendationResult::query()
+                ->where('model_version_id', $model->id)
+                ->where('user_id', $user->id)
+                ->where('is_exploration', true)
+                ->count()
+        );
     }
 }

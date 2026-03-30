@@ -34,6 +34,11 @@ class NotificationAdapterTest extends TestCase
         app(NotificationService::class)->send($user, 'reply', 'Reply', 'You got a reply');
 
         Log::shouldHaveReceived('debug')->once();
+        Log::shouldHaveReceived('debug')->withArgs(function ($message): bool {
+            return is_string($message)
+                && ! str_contains($message, 'notify@example.com')
+                && str_contains($message, 'recipient=');
+        });
     }
 
     public function test_sms_channel_does_not_deliver_when_disabled_even_if_listed(): void
@@ -54,11 +59,16 @@ class NotificationAdapterTest extends TestCase
         config()->set('roadlink.channels', ['in_app', 'sms']);
         config()->set('roadlink.sms.enabled', true);
 
-        $user = User::factory()->create(['role' => 'rider', 'email' => 'notify@example.com']);
+        $user = User::factory()->create(['role' => 'rider', 'email' => 'notify@example.com', 'phone' => '+15551234567']);
 
         Log::spy();
         app(NotificationService::class)->send($user, 'reply', 'Reply', 'You got a reply');
 
         Log::shouldHaveReceived('debug')->once();
+        Log::shouldHaveReceived('debug')->withArgs(function ($message): bool {
+            return is_string($message)
+                && ! str_contains($message, '+15551234567')
+                && str_contains($message, 'recipient=');
+        });
     }
 }

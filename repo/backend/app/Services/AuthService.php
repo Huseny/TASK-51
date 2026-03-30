@@ -13,18 +13,15 @@ class AuthService
 
     private int $lockoutMinutes;
 
-    private int $tokenExpirationHours;
-
     public function __construct()
     {
         $this->lockoutAttempts = (int) env('AUTH_LOCKOUT_ATTEMPTS', 5);
         $this->lockoutMinutes = (int) env('AUTH_LOCKOUT_MINUTES', 15);
-        $this->tokenExpirationHours = (int) env('AUTH_TOKEN_EXPIRATION_HOURS', 12);
     }
 
     /**
      * @param array<string, mixed> $data
-     * @return array{user: User, token: string}
+     * @return array{user: User}
      */
     public function register(array $data): array
     {
@@ -36,15 +33,13 @@ class AuthService
             'phone' => $data['phone'] ?? null,
         ]);
 
-        $token = $user->createToken('auth', ['*'], now()->addHours($this->tokenExpirationHours))->plainTextToken;
-
         Log::channel('auth')->info('User registered successfully', [
             'user_id' => $user->id,
             'username' => $user->username,
             'role' => $user->role,
         ]);
 
-        return ['user' => $user, 'token' => $token];
+        return ['user' => $user];
     }
 
     /**
@@ -103,8 +98,6 @@ class AuthService
         $user->last_login_at = Carbon::now();
         $user->save();
 
-        $token = $user->createToken('auth', ['*'], now()->addHours($this->tokenExpirationHours))->plainTextToken;
-
         Log::channel('auth')->info(sprintf('User %s logged in successfully', $user->username), [
             'user_id' => $user->id,
             'username' => $user->username,
@@ -114,7 +107,6 @@ class AuthService
             'status' => 200,
             'body' => [
                 'user' => $user,
-                'token' => $token,
             ],
         ];
     }

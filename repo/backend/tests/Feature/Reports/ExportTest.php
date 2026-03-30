@@ -27,7 +27,7 @@ class ExportTest extends TestCase
         $response = $this->postJson('/api/v1/reports/export', [
             'type' => 'distribution',
             'format' => 'csv',
-            'destination' => 'ops',
+            'directory_id' => 'ops',
             'filters' => [
                 'start_date' => now()->toDateString(),
                 'end_date' => now()->toDateString(),
@@ -61,7 +61,7 @@ class ExportTest extends TestCase
         $response = $this->postJson('/api/v1/reports/export', [
             'type' => 'trends',
             'format' => 'xlsx',
-            'destination' => 'finance',
+            'directory_id' => 'finance',
             'filters' => [
                 'grouping' => 'day',
             ],
@@ -77,7 +77,7 @@ class ExportTest extends TestCase
         $this->assertTrue(Storage::disk('local')->exists('exports/finance/'.$filename));
     }
 
-    public function test_invalid_destination_is_rejected(): void
+    public function test_disallowed_directory_selection_is_rejected(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         Sanctum::actingAs($admin);
@@ -85,12 +85,12 @@ class ExportTest extends TestCase
         $this->postJson('/api/v1/reports/export', [
             'type' => 'trends',
             'format' => 'csv',
-            'destination' => '../unsafe',
+            'directory_id' => 'unknown',
         ])->assertStatus(422)
             ->assertJsonPath('error', 'validation_error');
     }
 
-    public function test_invalid_destination_characters_are_rejected(): void
+    public function test_invalid_directory_characters_are_rejected(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         Sanctum::actingAs($admin);
@@ -98,9 +98,36 @@ class ExportTest extends TestCase
         $this->postJson('/api/v1/reports/export', [
             'type' => 'trends',
             'format' => 'csv',
-            'destination' => 'ops/reports!',
+            'directory_id' => 'ops/reports!',
         ])->assertStatus(422)
             ->assertJsonPath('error', 'validation_error');
+    }
+
+    public function test_traversal_like_export_root_configuration_is_rejected(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+
+        config()->set('reports.export_roots.ops.relative_path', '../unsafe');
+
+        $this->postJson('/api/v1/reports/export', [
+            'type' => 'trends',
+            'format' => 'csv',
+            'directory_id' => 'ops',
+        ])->assertStatus(422)
+            ->assertJsonPath('error', 'validation_error');
+    }
+
+    public function test_export_directory_listing_returns_allowlisted_roots(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/v1/reports/export-directories')
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.id', 'default')
+            ->assertJsonPath('data.1.id', 'ops')
+            ->assertJsonPath('data.2.id', 'finance');
     }
 
     public function test_driver_cannot_export_reports(): void
@@ -126,7 +153,7 @@ class ExportTest extends TestCase
         $url = (string) $this->postJson('/api/v1/reports/export', [
             'type' => 'regions',
             'format' => 'csv',
-            'destination' => 'ops',
+            'directory_id' => 'ops',
         ])->assertStatus(200)->json('url');
 
         $parts = parse_url($url);
@@ -150,6 +177,7 @@ class ExportTest extends TestCase
         $url = (string) $this->postJson('/api/v1/reports/export', [
             'type' => 'trends',
             'format' => 'csv',
+            'directory_id' => 'default',
         ])->assertStatus(200)->json('url');
 
         $parts = parse_url($url);
@@ -172,6 +200,7 @@ class ExportTest extends TestCase
         $url = (string) $this->postJson('/api/v1/reports/export', [
             'type' => 'distribution',
             'format' => 'csv',
+            'directory_id' => 'default',
         ])->assertStatus(200)->json('url');
 
         $parts = parse_url($url);

@@ -145,6 +145,30 @@ class NotificationController extends Controller
 
     private function aggregatedTitle(string $groupKey, int $count): string
     {
+        if (str_starts_with($groupKey, 'reply_')) {
+            return sprintf('%d new replies', $count);
+        }
+
+        if (str_starts_with($groupKey, 'comment_')) {
+            return sprintf('%d new comments', $count);
+        }
+
+        if (str_starts_with($groupKey, 'mention_')) {
+            return sprintf('%d new mentions', $count);
+        }
+
+        if (str_starts_with($groupKey, 'follower_')) {
+            return sprintf('%d new followers', $count);
+        }
+
+        if (str_starts_with($groupKey, 'moderation_')) {
+            return sprintf('%d moderation updates', $count);
+        }
+
+        if (str_starts_with($groupKey, 'announcement_')) {
+            return sprintf('%d system announcements', $count);
+        }
+
         if (preg_match('/ride_(\d+)/', $groupKey, $matches) === 1) {
             return sprintf('%d new updates on Ride #%d', $count, (int) $matches[1]);
         }

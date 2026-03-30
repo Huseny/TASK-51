@@ -9,4 +9,9 @@ return [
     'sms' => [
         'enabled' => filter_var(env('ROADLINK_SMS_ENABLED', false), FILTER_VALIDATE_BOOL),
     ],
+
+    'recommendations' => [
+        'epsilon' => (float) env('ROADLINK_RECOMMENDATION_EPSILON', 0.10),
+        'max_items_per_seller' => (int) env('ROADLINK_RECOMMENDATION_MAX_PER_SELLER', 2),
+    ],
 ];

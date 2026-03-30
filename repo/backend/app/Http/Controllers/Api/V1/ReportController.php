@@ -43,7 +43,8 @@ class ReportController extends Controller
     {
         $payload = $request->validated();
         $filters = $payload['filters'] ?? [];
-        $destination = $this->validateDestination((string) ($payload['destination'] ?? 'default'));
+        $directoryId = $this->validateDestination((string) ($payload['directory_id'] ?? $payload['destination'] ?? 'default'));
+        $root = $this->approvedExportRoot($directoryId);
 
         $data = match ($payload['type']) {
             'trends' => $this->reportService->trends($filters),
@@ -53,7 +54,7 @@ class ReportController extends Controller
 
         $extension = $payload['format'] === 'xlsx' ? 'xlsx' : 'csv';
         $filename = (string) Str::uuid().'.'.$extension;
-        $relativeDir = 'exports/'.$destination;
+        $relativeDir = $root['relative_path'];
         $relativePath = $relativeDir.'/'.$filename;
         Storage::disk('local')->makeDirectory($relativeDir);
         $path = Storage::disk('local')->path($relativePath);
@@ -101,7 +102,7 @@ class ReportController extends Controller
             'user_id' => $request->user()->id,
             'type' => $payload['type'],
             'format' => $extension,
-            'destination' => $destination,
+            'destination' => $directoryId,
             'relative_path' => $relativePath,
             'created_at' => now(),
         ]);
@@ -113,6 +114,20 @@ class ReportController extends Controller
         );
 
         return response()->json(['url' => $url]);
+    }
+
+    public function exportDirectories(): JsonResponse
+    {
+        $roots = config('reports.export_roots', []);
+
+        $data = collect($roots)
+            ->map(fn (array $root, string $id): array => [
+                'id' => $id,
+                'label' => (string) ($root['label'] ?? $id),
+            ])
+            ->values();
+
+        return response()->json(['data' => $data]);
     }
 
     public function download(Request $request, ReportExport $reportExport)
@@ -209,6 +224,33 @@ class ReportController extends Controller
         }
 
         return $trimmed;
+    }
+
+    /**
+     * @return array{label: string, relative_path: string}
+     */
+    private function approvedExportRoot(string $directoryId): array
+    {
+        $roots = config('reports.export_roots', []);
+        $root = $roots[$directoryId] ?? null;
+
+        if (! is_array($root) || ! isset($root['relative_path'])) {
+            throw ValidationException::withMessages([
+                'directory_id' => ['Selected export directory is not approved.'],
+            ]);
+        }
+
+        $relativePath = trim((string) $root['relative_path']);
+        if ($relativePath === '' || str_contains($relativePath, '..') || str_starts_with($relativePath, '/')) {
+            throw ValidationException::withMessages([
+                'directory_id' => ['Selected export directory is not safe.'],
+            ]);
+        }
+
+        return [
+            'label' => (string) ($root['label'] ?? $directoryId),
+            'relative_path' => $relativePath,
+        ];
     }
 
     /**

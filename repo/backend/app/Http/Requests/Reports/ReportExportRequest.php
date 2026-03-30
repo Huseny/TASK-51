@@ -19,6 +19,7 @@ class ReportExportRequest extends FormRequest
         return [
             'type' => ['required', 'in:trends,distribution,regions'],
             'format' => ['required', 'in:csv,xlsx'],
+            'directory_id' => ['required_without:destination', 'string', 'max:60', 'regex:/^[A-Za-z0-9_-]+$/'],
             'destination' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z0-9_-]+$/'],
             'filters' => ['nullable', 'array'],
             'filters.start_date' => ['nullable', 'date'],

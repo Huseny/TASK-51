@@ -54,6 +54,24 @@ const openItem = async (item) => {
   emit('close')
 }
 
+const scenarioLabel = (item) => {
+  const scenario = item.data?.scenario
+
+  if (scenario) {
+    return scenario.replace('_', ' ')
+  }
+
+  if (item.type === 'order_update') {
+    return 'comment'
+  }
+
+  if (item.type === 'system') {
+    return 'announcement'
+  }
+
+  return String(item.type || 'update').replace('_', ' ')
+}
+
 watch(
   () => props.open,
   async (nextOpen) => {
@@ -62,6 +80,7 @@ watch(
       await refreshCount()
     }
   },
+  { immediate: true }
 )
 </script>
 
@@ -90,7 +109,10 @@ watch(
       >
         <div class="item__row">
           <strong>{{ item.title }}</strong>
-          <small v-if="item.count > 1">{{ item.count }}</small>
+          <div class="item__meta">
+            <small class="pill">{{ scenarioLabel(item) }}</small>
+            <small v-if="item.count > 1">{{ item.count }}</small>
+          </div>
         </div>
         <p>{{ item.body }}</p>
       </button>
@@ -115,6 +137,21 @@ watch(
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
+}
+
+.item__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  text-transform: capitalize;
+  color: var(--color-text-muted);
 }
 
 .list {

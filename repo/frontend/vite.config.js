@@ -12,6 +12,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       injectManifest: {
+        rollupFormat: 'iife',
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
       includeAssets: ['icons/icon-192.svg', 'icons/icon-512.svg'],

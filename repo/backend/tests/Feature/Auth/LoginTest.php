@@ -19,7 +19,7 @@ class LoginTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_valid_credentials_return_token(): void
+    public function test_valid_credentials_return_user_without_token(): void
     {
         User::factory()->create([
             'username' => 'driver01',
@@ -31,7 +31,8 @@ class LoginTest extends TestCase
             'username' => 'driver01',
             'password' => 'Driver1234!',
         ])->assertStatus(200)
-            ->assertJsonStructure(['user', 'token']);
+            ->assertJsonStructure(['user'])
+            ->assertJsonMissingPath('token');
     }
 
     public function test_wrong_password_returns_generic_message(): void
@@ -103,7 +104,8 @@ class LoginTest extends TestCase
             'username' => 'time_locked',
             'password' => 'Password1234!',
         ])->assertStatus(200)
-            ->assertJsonStructure(['user', 'token']);
+            ->assertJsonStructure(['user'])
+            ->assertJsonMissingPath('token');
     }
 
     public function test_successful_login_resets_failed_attempt_counter(): void
@@ -129,17 +131,12 @@ class LoginTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-03-25 10:00:00'));
 
-        User::factory()->create([
+        $user = User::factory()->create([
             'username' => 'expiring_token',
             'password' => Hash::make('Password1234!'),
         ]);
 
-        $loginResponse = $this->postJson('/api/v1/auth/login', [
-            'username' => 'expiring_token',
-            'password' => 'Password1234!',
-        ])->assertStatus(200);
-
-        $token = $loginResponse->json('token');
+        $token = $user->createToken('auth', ['*'], now()->addHours(12))->plainTextToken;
 
         Carbon::setTestNow(Carbon::parse('2026-03-25 23:01:00'));
 

@@ -33,7 +33,7 @@ npm run build
 
 ## Executable E2E (Playwright)
 
-At least one critical flow is automated in `tests/e2e/ride-lifecycle-and-reports.e2e.spec.js`.
+Critical lifecycle, cache-isolation, offline-replay, and notification-scenario flows are automated in `tests/e2e/ride-lifecycle-and-reports.e2e.spec.js`.
 
 Recommended startup sequence (two terminals):
 
@@ -94,6 +94,10 @@ docker compose up --build frontend
 ## Dashboard Summary Cards
 
 - Dashboard cards now consume live API summaries (`/ride-orders` or `/driver/my-rides`, `/products`, `/notifications/unread-count`) instead of placeholder text.
+
+## Report Export Directory Selection
+
+- Reports export UI now uses approved backend directory choices (`/reports/export-directories`) instead of free-text destination input.
 
 ## Security Note (Session Auth)
 

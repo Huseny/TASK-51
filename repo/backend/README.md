@@ -41,10 +41,10 @@ If any step fails, confirm DB connectivity (`DB_*` values in `.env`) and require
 
 ## Report Export Destination Semantics
 
-- `destination` in `POST /api/v1/reports/export` is a **safe logical key**, not a raw filesystem path.
-- Allowed characters: `A-Z`, `a-z`, `0-9`, `_`, `-`.
-- Stored path is always rooted under local storage: `storage/app/exports/<destination>/...`.
-- Path traversal and unsafe characters are rejected by validation.
+- `directory_id` in `POST /api/v1/reports/export` must be selected from approved export roots (`GET /api/v1/reports/export-directories`).
+- The selected directory resolves to a configured local relative root (`config/reports.php`), not arbitrary user-provided filesystem paths.
+- Stored path remains rooted under local storage and signed download authorization is unchanged.
+- Unknown directories, unsafe characters, and traversal-like root config are rejected.
 
 ## Security Notes
 
@@ -56,6 +56,14 @@ If any step fails, confirm DB connectivity (`DB_*` values in `.env`) and require
 - `SESSION_LIFETIME` defaults to `720` minutes (12-hour web session window).
 - Notification channels are selected via `ROADLINK_NOTIFICATION_CHANNELS` (default `in_app`).
 - SMS delivery adapter can be listed as a channel, but is disabled by default unless `ROADLINK_SMS_ENABLED=true`.
+- `POST /api/v1/auth/register` and `POST /api/v1/auth/login` return user/session data only (no bearer token in JSON).
+- Recommendation policy is epsilon-greedy via `ROADLINK_RECOMMENDATION_EPSILON` (default `0.10`) and `ROADLINK_RECOMMENDATION_MAX_PER_SELLER` (default `2`).
+
+## Notification Scenarios
+
+- `POST /api/v1/notifications/events` can publish explicit in-app scenarios for comment, reply, mention, follower, moderation, and announcement events.
+- Moderation and announcement scenarios are restricted to `admin` / `fleet_manager` actors.
+- Notification aggregation keeps unread group dedupe (e.g. grouped replies become `N new replies`).
 
 ## Readiness + Schema Drift Recovery
 

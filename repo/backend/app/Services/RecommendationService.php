@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\DB;
 
 class RecommendationService
 {
+    private const TOP_K = 10;
+
+    private const SCORE_WEIGHT_COLLAB = 0.6;
+
+    private const SCORE_WEIGHT_CONTENT = 0.4;
+
     public function computeDailyModel(): RecommendationModel
     {
         return DB::transaction(function (): RecommendationModel {
@@ -79,6 +85,10 @@ class RecommendationService
                 'published_items' => $products->count(),
                 'results_generated' => count($resultRows),
                 'collaborative_method' => 'global_popularity_weighted_by_interactions',
+                'policy' => 'epsilon_greedy',
+                'epsilon' => $this->epsilon(),
+                'max_items_per_seller' => $this->maxItemsPerSeller(),
+                'top_k' => self::TOP_K,
             ];
             $model->save();
 
@@ -133,57 +143,87 @@ class RecommendationService
         foreach ($unseenProducts as $product) {
             $collab = $normalizedCollab[$product->id] ?? 0.0;
             $content = $maxContent > 0 ? (($rawContentScores[$product->id] ?? 0.0) / $maxContent) : 0.0;
-            $finalScores[$product->id] = round(($collab * 0.6) + ($content * 0.4), 6);
+            $finalScores[$product->id] = round(
+                ($collab * self::SCORE_WEIGHT_COLLAB) + ($content * self::SCORE_WEIGHT_CONTENT),
+                6
+            );
         }
 
-        arsort($finalScores);
+        return $this->selectTopKWithEpsilon($unseenProducts, $finalScores);
+    }
 
-        $unseenIds = $unseenProducts->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $explorationItemId = $unseenIds[array_rand($unseenIds)];
-        $explorationScore = (float) ($finalScores[$explorationItemId] ?? 0.0);
+    /**
+     * @param  Collection<int, Product>  $products
+     * @param  array<int, float>  $finalScores
+     * @return array<int, array{item_id: int, score: float, is_exploration: bool}>
+     */
+    private function selectTopKWithEpsilon(Collection $products, array $finalScores): array
+    {
+        $epsilon = $this->epsilon();
+        $maxPerSeller = $this->maxItemsPerSeller();
 
-        $sellerCounts = [];
-        $explorationProduct = $unseenProducts->firstWhere('id', $explorationItemId);
-        if ($explorationProduct instanceof Product) {
-            $sellerCounts[$explorationProduct->seller_id] = 1;
-        }
-
-        unset($finalScores[$explorationItemId]);
+        $available = collect($finalScores)
+            ->map(fn (float $score, int $itemId): array => ['item_id' => $itemId, 'score' => $score])
+            ->sortByDesc('score')
+            ->values();
 
         $selected = [];
-        foreach ($finalScores as $itemId => $score) {
-            if (count($selected) >= 9) {
+        $sellerCounts = [];
+
+        while (count($selected) < self::TOP_K && $available->isNotEmpty()) {
+            $allowedCandidates = $available
+                ->filter(function (array $candidate) use ($products, $sellerCounts, $maxPerSeller): bool {
+                    $product = $products->firstWhere('id', $candidate['item_id']);
+                    if (! $product instanceof Product) {
+                        return false;
+                    }
+
+                    return ($sellerCounts[$product->seller_id] ?? 0) < $maxPerSeller;
+                })
+                ->values();
+
+            if ($allowedCandidates->isEmpty()) {
                 break;
             }
 
-            $product = $unseenProducts->firstWhere('id', $itemId);
+            $isExploration = $this->randomFloat() < $epsilon;
+
+            $picked = $isExploration
+                ? $allowedCandidates->random()
+                : $allowedCandidates->sortByDesc('score')->first();
+
+            $product = $products->firstWhere('id', $picked['item_id']);
             if (! $product instanceof Product) {
+                $available = $available->reject(fn (array $row): bool => $row['item_id'] === $picked['item_id'])->values();
                 continue;
             }
 
-            $sellerCount = $sellerCounts[$product->seller_id] ?? 0;
-            if ($sellerCount >= 2) {
-                continue;
-            }
-
-            $sellerCounts[$product->seller_id] = $sellerCount + 1;
+            $sellerCounts[$product->seller_id] = ($sellerCounts[$product->seller_id] ?? 0) + 1;
             $selected[] = [
-                'item_id' => (int) $itemId,
-                'score' => (float) $score,
-                'is_exploration' => false,
+                'item_id' => (int) $picked['item_id'],
+                'score' => (float) $picked['score'],
+                'is_exploration' => $isExploration,
             ];
+
+            $available = $available->reject(fn (array $row): bool => $row['item_id'] === $picked['item_id'])->values();
         }
 
-        $explorationRow = [
-            'item_id' => (int) $explorationItemId,
-            'score' => $explorationScore,
-            'is_exploration' => true,
-        ];
+        return $selected;
+    }
 
-        $insertPosition = count($selected) > 0 ? random_int(0, count($selected)) : 0;
-        array_splice($selected, $insertPosition, 0, [$explorationRow]);
+    private function epsilon(): float
+    {
+        return max(0.0, min(1.0, (float) config('roadlink.recommendations.epsilon', 0.10)));
+    }
 
-        return array_slice($selected, 0, 10);
+    private function maxItemsPerSeller(): int
+    {
+        return max(1, (int) config('roadlink.recommendations.max_items_per_seller', 2));
+    }
+
+    private function randomFloat(): float
+    {
+        return mt_rand() / mt_getrandmax();
     }
 
     /**
