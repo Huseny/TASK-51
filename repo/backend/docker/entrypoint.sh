@@ -29,6 +29,9 @@ set_env_var "DB_DATABASE" "${DB_DATABASE:-}"
 set_env_var "DB_USERNAME" "${DB_USERNAME:-}"
 set_env_var "DB_PASSWORD" "${DB_PASSWORD:-}"
 
+mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views
+chmod -R 775 bootstrap/cache storage/framework || true
+
 composer install --no-interaction --prefer-dist
 
 if ! grep -q "^APP_KEY=base64:" .env; then
