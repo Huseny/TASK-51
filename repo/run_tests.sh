@@ -23,6 +23,15 @@ wait_for_container() {
       echo "[run_tests.sh] ${service} is ready (${label})."
       return 0
     fi
+
+    local status
+    status=$(docker compose ps --format '{{.State}}' "$service" 2>/dev/null || echo "unknown")
+    if [ "$status" = "exited" ] || [ "$status" = "dead" ]; then
+      echo "[run_tests.sh] ERROR: ${service} container has stopped (state: ${status})."
+      docker compose logs --tail=40 "$service" || true
+      return 1
+    fi
+
     echo "[run_tests.sh] ${service} not ready yet (attempt ${i}/${attempts}), retrying in ${delay}s..."
     sleep "$delay"
   done
