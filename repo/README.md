@@ -9,7 +9,7 @@ repo/
 ├── backend/                    # Laravel 11 API, scheduler jobs, queues, tests
 ├── frontend/                   # Vue 3 SPA, PWA service worker, Vitest suite
 ├── docker-compose.yml          # One-click stack (mysql, backend, frontend, scheduler)
-├── run.sh                      # Docker-based test runner (backend + frontend)
+├── run_tests.sh                # Docker-based test runner (backend + frontend)
 └── Makefile                    # Convenience wrappers
 
 ../docs/
@@ -66,7 +66,7 @@ docker compose exec frontend npm run test
 Docker all-in-one test run:
 
 ```bash
-./run.sh
+./run_tests.sh
 ```
 
 ### Backend Non-Docker Test Run (Local PHP)
