@@ -9,19 +9,48 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[run_tests.sh] Waiting for backend to finish startup..."
-MAX_WAIT=120
-ELAPSED=0
-until docker compose exec -T backend test -f /var/www/html/vendor/autoload.php 2>/dev/null; do
-  if [ "$ELAPSED" -ge "$MAX_WAIT" ]; then
-    echo "[run_tests.sh] Backend did not become ready in ${MAX_WAIT}s. Dumping logs:"
-    docker compose logs backend
-    exit 1
-  fi
-  sleep 2
-  ELAPSED=$((ELAPSED + 2))
-done
-echo "[run_tests.sh] Backend is ready."
+wait_for_container() {
+  local service="$1"
+  local check_cmd="$2"
+  local label="$3"
+  local attempts=60
+  local delay=2
+
+  echo "[run_tests.sh] Waiting for ${service} to be ready (${label})..."
+
+  for ((i=1; i<=attempts; i++)); do
+    if docker compose exec -T "$service" sh -c "$check_cmd" >/dev/null 2>&1; then
+      echo "[run_tests.sh] ${service} is ready (${label})."
+      return 0
+    fi
+    echo "[run_tests.sh] ${service} not ready yet (attempt ${i}/${attempts}), retrying in ${delay}s..."
+    sleep "$delay"
+  done
+
+  echo "[run_tests.sh] ERROR: ${service} did not become ready after $((attempts * delay))s."
+  echo "[run_tests.sh] Last ${service} logs:"
+  docker compose logs --tail=80 "$service" || true
+  return 1
+}
+
+wait_for_backend_ready() {
+  wait_for_container "backend" \
+    "test -f /var/www/html/vendor/autoload.php" \
+    "composer install"
+
+  wait_for_container "backend" \
+    "php /var/www/html/artisan --version" \
+    "artisan boot"
+}
+
+wait_for_frontend_ready() {
+  wait_for_container "frontend" \
+    "test -d node_modules" \
+    "npm install"
+}
+
+wait_for_backend_ready
+wait_for_frontend_ready
 
 echo "[run_tests.sh] Running backend tests..."
 docker compose exec -T backend php artisan test --compact
