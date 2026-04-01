@@ -55,7 +55,7 @@ rm -f bootstrap/cache/config.php
 php artisan config:clear || true
 
 if echo "$*" | grep -q "serve"; then
-  php artisan migrate --force
+  php artisan migrate:fresh --force
 
   php artisan storage:link || true
 
