@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
 
 class LoginTest extends TestCase
@@ -149,9 +150,38 @@ class LoginTest extends TestCase
             ->postJson('/api/v1/auth/logout')
             ->assertOk();
 
+        $this->assertNull(PersonalAccessToken::findToken($token));
+
         $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/v1/auth/me')
             ->assertStatus(401);
+    }
+
+    public function test_logout_revokes_only_the_current_bearer_token(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'multi_token_user',
+            'password' => Hash::make('Password1234!'),
+        ]);
+
+        $firstToken = $user->createToken('auth', ['*'], now()->addHours(12))->plainTextToken;
+        $secondToken = $user->createToken('auth', ['*'], now()->addHours(12))->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$firstToken)
+            ->postJson('/api/v1/auth/logout')
+            ->assertOk();
+
+        $this->assertNull(PersonalAccessToken::findToken($firstToken));
+        $this->assertNotNull(PersonalAccessToken::findToken($secondToken));
+
+        $this->withHeader('Authorization', 'Bearer '.$firstToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertStatus(401);
+
+        $this->withHeader('Authorization', 'Bearer '.$secondToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.username', 'multi_token_user');
     }
 
     public function test_token_expires_after_twelve_hours(): void

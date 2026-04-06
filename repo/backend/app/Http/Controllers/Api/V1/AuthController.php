@@ -9,6 +9,7 @@ use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -36,9 +37,17 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
+        $currentToken = $request->user()?->currentAccessToken();
 
-        if ($request->user()?->currentAccessToken()) {
-            $request->user()->currentAccessToken()->delete();
+        if ($currentToken) {
+            $currentToken->delete();
+        } elseif ($request->bearerToken()) {
+            PersonalAccessToken::findToken($request->bearerToken())?->delete();
+        }
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
         Log::channel('auth')->info('User logged out successfully', [
