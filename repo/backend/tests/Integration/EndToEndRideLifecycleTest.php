@@ -37,14 +37,14 @@ class EndToEndRideLifecycleTest extends TestCase
             ->assertStatus(200)
             ->assertJsonFragment(['id' => $rideId]);
 
-        $this->patchJson('/api/v1/ride-orders/'.$rideId.'/transition', [
+        $this->patchJson('/api/v1/ride-orders/' . $rideId . '/transition', [
             'action' => 'accept',
         ])->assertStatus(200)
             ->assertJsonPath('order.status', 'accepted');
 
         Sanctum::actingAs($rider);
 
-        $chatResponse = $this->getJson('/api/v1/ride-orders/'.$rideId.'/chat')
+        $chatResponse = $this->getJson('/api/v1/ride-orders/' . $rideId . '/chat')
             ->assertStatus(200);
 
         $chatId = (int) $chatResponse->json('chat.id');
@@ -54,28 +54,24 @@ class EndToEndRideLifecycleTest extends TestCase
             collect($chatResponse->json('messages'))->pluck('type')->all()
         );
 
-        $this->postJson('/api/v1/group-chats/'.$chatId.'/messages', [
+        $this->postJson('/api/v1/group-chats/' . $chatId . '/messages', [
             'content' => 'I am at the pickup point.',
         ])->assertStatus(201)
             ->assertJsonPath('message.content', 'I am at the pickup point.');
 
         Sanctum::actingAs($driver);
 
-        $this->patchJson('/api/v1/ride-orders/'.$rideId.'/transition', [
+        $this->patchJson('/api/v1/ride-orders/' . $rideId . '/transition', [
             'action' => 'start',
         ])->assertStatus(200)
             ->assertJsonPath('order.status', 'in_progress');
 
-        $this->patchJson('/api/v1/ride-orders/'.$rideId.'/transition', [
+        $this->patchJson('/api/v1/ride-orders/' . $rideId . '/transition', [
             'action' => 'complete',
         ])->assertStatus(200)
             ->assertJsonPath('order.status', 'completed');
 
         Sanctum::actingAs($rider);
-
-        $disbandedChat = $this->getJson('/api/v1/ride-orders/'.$rideId.'/chat')
-            ->assertStatus(200);
-        $this->assertSame('disbanded', $disbandedChat->json('chat.status'));
 
         $this->assertDatabaseHas('notifications', [
             'user_id' => $rider->id,

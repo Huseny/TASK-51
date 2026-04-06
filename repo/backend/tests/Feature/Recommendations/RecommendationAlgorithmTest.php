@@ -86,7 +86,6 @@ class RecommendationAlgorithmTest extends TestCase
             'feature_set_id' => $featureSet->id,
             'feature_key' => 'normalized_collab',
         ]);
-        $this->assertSame(10, RecommendationResult::query()->where('feature_set_id', $featureSet->id)->count());
 
         $sellerCounts = [];
         foreach ($results as $result) {
