@@ -12,6 +12,7 @@ class DndService
     {
         $participant = $chat->participants()
             ->where('user_id', $user->id)
+            ->active()
             ->first();
 
         if (! $participant) {

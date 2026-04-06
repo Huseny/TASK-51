@@ -78,14 +78,32 @@ If any step fails, confirm DB connectivity (`DB_*` values in `.env`) and require
 
 - Report downloads require: valid signed URL + `auth:sanctum` + non-expired token + role (`admin`/`fleet_manager`) + ownership authorization.
 - Media downloads require signed URL and object-level owner/admin checks.
+- Group chat endpoints require active membership (`left_at IS NULL`) for read, receipt, and DND operations.
+- Follower notification scenarios are authorized only by persisted `user_follows` relationships, not by notification subscriptions.
+- Fleet operations are exposed under `/api/v1/fleet/*` for `fleet_manager` / `admin` dispatch workflows.
 
-## Session + Notification Config
+## Auth + Notification Config
 
-- `SESSION_LIFETIME` defaults to `720` minutes (12-hour web session window).
+- `SANCTUM_TOKEN_EXPIRATION` defaults to `720` minutes (12-hour bearer token window).
 - Notification channels are selected via `ROADLINK_NOTIFICATION_CHANNELS` (default `in_app`).
 - SMS delivery adapter can be listed as a channel, but is disabled by default unless `ROADLINK_SMS_ENABLED=true`.
-- `POST /api/v1/auth/register` and `POST /api/v1/auth/login` return user/session data only (no bearer token in JSON).
+- `POST /api/v1/auth/register` and `POST /api/v1/auth/login` return bearer-token payloads: `user`, `token`, `token_type`, `expires_at`.
+- Protected routes use `auth:sanctum` and expect `Authorization: Bearer <token>`.
+- `POST /api/v1/auth/logout` revokes the current access token.
+- Stateful session auth may still exist in some local setups, but it is deprecated for API clients.
 - Recommendation policy is epsilon-greedy via `ROADLINK_RECOMMENDATION_EPSILON` (default `0.10`) and `ROADLINK_RECOMMENDATION_MAX_PER_SELLER` (default `2`).
+- Recommendation runs persist structured feature sets and feature values by version for deterministic replay.
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin01","password":"Admin12345!"}'
+
+curl http://127.0.0.1:8000/api/v1/auth/me \
+  -H "Authorization: Bearer <token>"
+```
 
 ## Notification Scenarios
 

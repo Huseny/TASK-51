@@ -113,7 +113,7 @@ class NotificationScenarioTest extends TestCase
         ]);
     }
 
-    public function test_follower_notification_allows_follow_subscription_trusted_flow(): void
+    public function test_follower_notification_cannot_be_spoofed_with_subscription_record(): void
     {
         $actor = User::factory()->create(['role' => 'rider']);
         $recipient = User::factory()->create(['role' => 'driver']);
@@ -130,7 +130,7 @@ class NotificationScenarioTest extends TestCase
         $this->postJson('/api/v1/notifications/events', [
             'scenario' => 'follower',
             'recipient_id' => $recipient->id,
-        ])->assertStatus(201);
+        ])->assertStatus(403);
     }
 
     public function test_non_admin_moderation_announcement_are_forbidden_and_admin_allowed(): void

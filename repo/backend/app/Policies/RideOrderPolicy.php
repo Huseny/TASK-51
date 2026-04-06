@@ -28,4 +28,18 @@ class RideOrderPolicy
         return ($user->role === 'driver' && $order->driver_id === $user->id)
             || $user->role === 'admin';
     }
+
+    public function fleetView(User $user, RideOrder $order): bool
+    {
+        return in_array($user->role, ['fleet_manager', 'admin'], true);
+    }
+
+    public function fleetManage(User $user, RideOrder $order): bool
+    {
+        if (! in_array($user->role, ['fleet_manager', 'admin'], true)) {
+            return false;
+        }
+
+        return ! in_array($order->status, ['completed', 'canceled'], true);
+    }
 }

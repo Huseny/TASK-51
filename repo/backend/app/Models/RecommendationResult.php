@@ -14,6 +14,7 @@ class RecommendationResult extends Model
 
     protected $fillable = [
         'model_version_id',
+        'feature_set_id',
         'user_id',
         'item_id',
         'score',
@@ -42,6 +43,11 @@ class RecommendationResult extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function featureSet(): BelongsTo
+    {
+        return $this->belongsTo(RecommendationFeatureSet::class, 'feature_set_id');
     }
 
     public function item(): BelongsTo

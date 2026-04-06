@@ -26,7 +26,7 @@ class GroupChatLifecycleService
             return;
         }
 
-        if ($fromStatus === 'exception' && $toStatus === 'matching') {
+        if ($toStatus === 'matching') {
             $previousDriverId = isset($context['previous_driver_id']) ? (int) $context['previous_driver_id'] : null;
             $this->removeDriver($order, $previousDriverId);
         }

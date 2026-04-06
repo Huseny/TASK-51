@@ -6,21 +6,15 @@ use Tests\TestCase;
 
 class SessionLifetimeTest extends TestCase
 {
-    public function test_session_lifetime_is_configured_for_twelve_hours(): void
+    public function test_sanctum_token_lifetime_is_configured_for_twelve_hours(): void
     {
-        $this->assertSame(720, (int) config('session.lifetime'));
+        $this->assertSame(720, (int) config('sanctum.expiration'));
     }
 
-    public function test_csrf_endpoint_sets_twelve_hour_session_cookie_ttl(): void
+    public function test_sanctum_stateful_cookie_endpoint_remains_available_for_deprecated_clients(): void
     {
         $response = $this->get('/sanctum/csrf-cookie');
 
         $response->assertNoContent();
-
-        $setCookieHeader = implode("\n", $response->headers->all('set-cookie'));
-
-        $cookieName = config('session.cookie');
-        $this->assertStringContainsString($cookieName . '=', $setCookieHeader);
-        $this->assertMatchesRegularExpression('/Max-Age=(43199|43200)/', $setCookieHeader);
     }
 }

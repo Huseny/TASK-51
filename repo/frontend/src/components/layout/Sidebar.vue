@@ -29,6 +29,7 @@ const linksByRole = {
   ],
   fleet_manager: [
     { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Ride Queue', to: '/fleet/rides' },
     { label: 'Vehicles', to: '/vehicles' },
     { label: 'Products', to: '/products/manage' },
     { label: 'Reports', to: '/reports' },
@@ -38,7 +39,7 @@ const linksByRole = {
   admin: [
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Users', to: '/dashboard' },
-    { label: 'All Rides', to: '/dashboard' },
+    { label: 'All Rides', to: '/fleet/rides' },
     { label: 'Products', to: '/products/manage' },
     { label: 'Reports', to: '/reports' },
     { label: 'Notifications', to: '/dashboard' },

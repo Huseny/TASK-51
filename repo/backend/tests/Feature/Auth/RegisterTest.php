@@ -10,7 +10,7 @@ class RegisterTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_successful_registration_returns_user_without_token(): void
+    public function test_successful_registration_returns_user_with_bearer_token(): void
     {
         $response = $this->postJson('/api/v1/auth/register', [
             'username' => 'new_rider',
@@ -20,8 +20,8 @@ class RegisterTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['user' => ['id', 'username', 'role']])
-            ->assertJsonMissingPath('token');
+            ->assertJsonStructure(['user' => ['id', 'username', 'role'], 'token', 'token_type', 'expires_at'])
+            ->assertJsonPath('token_type', 'Bearer');
     }
 
     public function test_duplicate_username_returns_validation_error(): void
@@ -99,16 +99,17 @@ class RegisterTest extends TestCase
             ->assertJsonPath('error', 'validation_error');
     }
 
-    public function test_registered_user_is_authenticated_via_session_immediately(): void
+    public function test_registered_user_can_access_me_with_returned_bearer_token_immediately(): void
     {
-        $this->postJson('/api/v1/auth/register', [
+        $token = (string) $this->postJson('/api/v1/auth/register', [
             'username' => 'instant_login',
             'password' => 'Password1234',
             'password_confirmation' => 'Password1234',
             'role' => 'driver',
-        ])->assertStatus(201);
+        ])->assertStatus(201)->json('token');
 
-        $this->getJson('/api/v1/auth/me')
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/auth/me')
             ->assertStatus(200)
             ->assertJsonPath('user.username', 'instant_login');
     }

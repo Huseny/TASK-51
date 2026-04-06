@@ -137,4 +137,38 @@ class RideOrderStateMachineTest extends TestCase
 
         $stateMachine->transition($secondRead, 'accept', $driverB);
     }
+
+    public function test_reassign_audit_log_captures_previous_driver_new_driver_and_reason(): void
+    {
+        $stateMachine = app(RideOrderStateMachine::class);
+        $rider = User::factory()->create(['role' => 'rider']);
+        $driver = User::factory()->create(['role' => 'driver']);
+
+        $order = RideOrder::factory()->create([
+            'status' => 'accepted',
+            'rider_id' => $rider->id,
+            'driver_id' => $driver->id,
+            'accepted_at' => now()->subMinutes(6),
+        ]);
+
+        $reassigned = $stateMachine->transition($order, 'reassign', null, ['reason' => 'no_show_auto_revert']);
+        $auditLog = $reassigned->auditLogs()->latest('created_at')->firstOrFail();
+
+        $this->assertSame('matching', $reassigned->status);
+        $this->assertSame([
+            'reason' => 'no_show_auto_revert',
+            'previous_driver_id' => $driver->id,
+            'new_driver_id' => null,
+            'driver_changed' => true,
+            'driver_reassigned' => true,
+            'reassignment_reason' => 'no_show_auto_revert',
+        ], array_intersect_key($auditLog->metadata ?? [], array_flip([
+            'reason',
+            'previous_driver_id',
+            'new_driver_id',
+            'driver_changed',
+            'driver_reassigned',
+            'reassignment_reason',
+        ])));
+    }
 }

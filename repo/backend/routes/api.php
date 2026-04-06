@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DriverRideController;
+use App\Http\Controllers\Api\V1\FleetRideController;
 use App\Http\Controllers\Api\V1\FollowController;
 use App\Http\Controllers\Api\V1\GroupChatController;
 use App\Http\Controllers\Api\V1\InteractionController;
@@ -41,6 +42,16 @@ Route::prefix('v1')->middleware('idempotency')->group(function (): void {
         Route::get('/driver/available-rides', [DriverRideController::class, 'availableRides']);
         Route::get('/driver/my-rides', [DriverRideController::class, 'myRides']);
         Route::get('/driver/my-rides/{rideOrder}', [DriverRideController::class, 'showMyRide']);
+    });
+
+    Route::middleware(['token.not_expired', 'auth:sanctum', 'role:fleet_manager,admin'])->prefix('fleet')->group(function (): void {
+        Route::get('/rides/queue', [FleetRideController::class, 'queue']);
+        Route::get('/rides/active', [FleetRideController::class, 'active']);
+        Route::get('/rides/{rideOrder}', [FleetRideController::class, 'show']);
+        Route::get('/drivers', [FleetRideController::class, 'drivers']);
+        Route::patch('/rides/{rideOrder}/assign', [FleetRideController::class, 'assign']);
+        Route::patch('/rides/{rideOrder}/reassign', [FleetRideController::class, 'reassign']);
+        Route::patch('/rides/{rideOrder}/cancel', [FleetRideController::class, 'cancel']);
     });
 
     Route::middleware(['token.not_expired', 'auth:sanctum', 'role:rider'])->group(function (): void {

@@ -38,45 +38,28 @@ const ensureServicesOrSkip = async (request) => {
   )
 }
 
-const getXsrfToken = async (apiContext) => {
-  const state = await apiContext.storageState()
-  const cookie = state.cookies.find((entry) => entry.name === 'XSRF-TOKEN')
-  expect(cookie).toBeTruthy()
-  return decodeURIComponent(cookie.value)
-}
+const postAsBearer = async (apiContext, path, data) => apiContext.post(`${API_BASE}${path}`, { data })
 
-const postAsSession = async (apiContext, path, data) => apiContext.post(`${API_BASE}${path}`, {
-  data,
-  headers: {
-    'X-XSRF-TOKEN': await getXsrfToken(apiContext),
-  },
-})
+const patchAsBearer = async (apiContext, path, data) => apiContext.patch(`${API_BASE}${path}`, { data })
 
-const patchAsSession = async (apiContext, path, data) => apiContext.patch(`${API_BASE}${path}`, {
-  data,
-  headers: {
-    'X-XSRF-TOKEN': await getXsrfToken(apiContext),
-  },
-})
-
-const createSessionClient = async (playwright, credentials) => {
-  const apiContext = await playwright.request.newContext({
-    extraHTTPHeaders: {
-      Origin: WEB_BASE,
-      Referer: `${WEB_BASE}/`,
+const createBearerClient = async (playwright, credentials) => {
+  const loginContext = await playwright.request.newContext()
+  const loginResponse = await loginContext.post(`${API_BASE}/auth/login`, {
+    data: {
+      username: credentials.username,
+      password: credentials.password,
     },
   })
-
-  const csrfResponse = await apiContext.get(`${API_ROOT}/sanctum/csrf-cookie`)
-  expect(csrfResponse.status()).toBe(204)
-
-  const loginResponse = await postAsSession(apiContext, '/auth/login', {
-    username: credentials.username,
-    password: credentials.password,
-  })
   expect(loginResponse.status()).toBe(200)
+  const loginPayload = await loginResponse.json()
+  expect(loginPayload.token).toBeTruthy()
+  await loginContext.dispose()
 
-  return apiContext
+  return playwright.request.newContext({
+    extraHTTPHeaders: {
+      Authorization: `Bearer ${loginPayload.token}`,
+    },
+  })
 }
 
 const closeContexts = async (contexts) => {
@@ -176,12 +159,12 @@ test('ride lifecycle + report export with auth boundaries', async ({ request, pa
   const driver = await registerUser(request, { role: 'driver', prefix: 'e2e_driver' })
   const manager = await registerUser(request, { role: 'fleet_manager', prefix: 'e2e_manager' })
 
-  const riderApi = await createSessionClient(playwright, rider)
-  const driverApi = await createSessionClient(playwright, driver)
-  const managerApi = await createSessionClient(playwright, manager)
+  const riderApi = await createBearerClient(playwright, rider)
+  const driverApi = await createBearerClient(playwright, driver)
+  const managerApi = await createBearerClient(playwright, manager)
 
   try {
-    const createRide = await postAsSession(riderApi, '/ride-orders', {
+    const createRide = await postAsBearer(riderApi, '/ride-orders', {
       origin_address: '123 Main St',
       destination_address: 'Airport',
       rider_count: 2,
@@ -195,13 +178,13 @@ test('ride lifecycle + report export with auth boundaries', async ({ request, pa
     const available = await driverApi.get(`${API_BASE}/driver/available-rides`)
     expect(available.status()).toBe(200)
 
-    const accept = await patchAsSession(driverApi, `/ride-orders/${rideId}/transition`, { action: 'accept' })
+    const accept = await patchAsBearer(driverApi, `/ride-orders/${rideId}/transition`, { action: 'accept' })
     expect(accept.status()).toBe(200)
 
-    const start = await patchAsSession(driverApi, `/ride-orders/${rideId}/transition`, { action: 'start' })
+    const start = await patchAsBearer(driverApi, `/ride-orders/${rideId}/transition`, { action: 'start' })
     expect(start.status()).toBe(200)
 
-    const complete = await patchAsSession(driverApi, `/ride-orders/${rideId}/transition`, { action: 'complete' })
+    const complete = await patchAsBearer(driverApi, `/ride-orders/${rideId}/transition`, { action: 'complete' })
     expect(complete.status()).toBe(200)
 
     const show = await riderApi.get(`${API_BASE}/ride-orders/${rideId}`)
@@ -209,7 +192,7 @@ test('ride lifecycle + report export with auth boundaries', async ({ request, pa
     const showPayload = await show.json()
     expect(showPayload.order.status).toBe('completed')
 
-    const unauthorizedExport = await postAsSession(riderApi, '/reports/export', {
+    const unauthorizedExport = await postAsBearer(riderApi, '/reports/export', {
       type: 'trends',
       format: 'csv',
       destination: 'qa',
@@ -217,7 +200,7 @@ test('ride lifecycle + report export with auth boundaries', async ({ request, pa
     })
     expect(unauthorizedExport.status()).toBe(403)
 
-    const authorizedExport = await postAsSession(managerApi, '/reports/export', {
+    const authorizedExport = await postAsBearer(managerApi, '/reports/export', {
       type: 'trends',
       format: 'csv',
       destination: 'qa',
@@ -239,12 +222,12 @@ test('cross-user login does not leak cached rider state', async ({ request, page
   const riderA = await registerUser(request, { role: 'rider', prefix: 'e2e_isolated_a' })
   const riderB = await registerUser(request, { role: 'rider', prefix: 'e2e_isolated_b' })
 
-  const riderAApi = await createSessionClient(playwright, riderA)
+  const riderAApi = await createBearerClient(playwright, riderA)
   const uniqueOrigin = `A-Origin-${randomSuffix()}`
   const uniqueDestination = `A-Destination-${randomSuffix()}`
 
   try {
-    const createRide = await postAsSession(riderAApi, '/ride-orders', {
+    const createRide = await postAsBearer(riderAApi, '/ride-orders', {
       origin_address: uniqueOrigin,
       destination_address: uniqueDestination,
       rider_count: 1,
@@ -336,9 +319,9 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
   const commenter = await registerUser(request, { role: 'driver', prefix: 'e2e_notify_commenter' })
   const moderator = await registerUser(request, { role: 'fleet_manager', prefix: 'e2e_notify_moderator' })
 
-  const recipientApi = await createSessionClient(playwright, recipient)
-  const commenterApi = await createSessionClient(playwright, commenter)
-  const moderatorApi = await createSessionClient(playwright, moderator)
+  const recipientApi = await createBearerClient(playwright, recipient)
+  const commenterApi = await createBearerClient(playwright, commenter)
+  const moderatorApi = await createBearerClient(playwright, moderator)
   let recipientCookies = []
 
   try {
@@ -347,7 +330,7 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
     const mePayload = await meRes.json()
     const recipientId = mePayload.user.id
 
-    const createRide = await postAsSession(recipientApi, '/ride-orders', {
+    const createRide = await postAsBearer(recipientApi, '/ride-orders', {
       origin_address: `Notify Origin ${randomSuffix()}`,
       destination_address: `Notify Destination ${randomSuffix()}`,
       rider_count: 1,
@@ -357,11 +340,11 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
     expect(createRide.status()).toBe(201)
     const rideId = (await createRide.json()).order.id
 
-    const acceptRide = await patchAsSession(commenterApi, `/ride-orders/${rideId}/transition`, { action: 'accept' })
+    const acceptRide = await patchAsBearer(commenterApi, `/ride-orders/${rideId}/transition`, { action: 'accept' })
     expect(acceptRide.status()).toBe(200)
 
     const createEventFromCommenter = async (scenario) => {
-      const response = await postAsSession(commenterApi, '/notifications/events', {
+      const response = await postAsBearer(commenterApi, '/notifications/events', {
         scenario,
         recipient_id: recipientId,
         ride_id: rideId,
@@ -371,7 +354,7 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
     }
 
     const createModeratorEvent = async (scenario, message = '') => {
-      const response = await postAsSession(moderatorApi, '/notifications/events', {
+      const response = await postAsBearer(moderatorApi, '/notifications/events', {
         scenario,
         recipient_id: recipientId,
         message,
@@ -385,13 +368,13 @@ test('notification center covers comment/reply/mention/follower/moderation/annou
     await createEventFromCommenter('reply')
     await createEventFromCommenter('mention')
 
-    const followResponse = await postAsSession(commenterApi, '/notification-subscriptions', {
+    const followResponse = await postAsBearer(commenterApi, '/notification-subscriptions', {
       entity_type: 'follow_user',
       entity_id: recipientId,
     })
     expect(followResponse.status()).toBe(201)
 
-    const followerEvent = await postAsSession(commenterApi, '/notifications/events', {
+    const followerEvent = await postAsBearer(commenterApi, '/notifications/events', {
       scenario: 'follower',
       recipient_id: recipientId,
     })

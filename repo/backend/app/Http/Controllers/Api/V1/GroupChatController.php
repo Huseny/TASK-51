@@ -7,6 +7,7 @@ use App\Http\Requests\Chat\MarkChatReadRequest;
 use App\Http\Requests\Chat\SendGroupMessageRequest;
 use App\Http\Requests\Chat\UpdateDndRequest;
 use App\Models\GroupChat;
+use App\Models\GroupChatParticipant;
 use App\Models\GroupMessage;
 use App\Models\MessageReadReceipt;
 use App\Models\RideOrder;
@@ -27,10 +28,10 @@ class GroupChatController extends Controller
             ], 404);
         }
 
-        if (! $this->isParticipant($chat, $request->user()->id)) {
+        if (! $this->getActiveParticipant($chat->id, $request->user()->id)) {
             return response()->json([
                 'error' => 'forbidden',
-                'message' => 'You are not a participant of this chat',
+                'message' => 'You are not an active participant in this chat',
             ], 403);
         }
 
@@ -67,11 +68,9 @@ class GroupChatController extends Controller
             ], 403);
         }
 
-        $participant = $chat->participants()
-            ->where('user_id', $request->user()->id)
-            ->first();
+        $participant = $this->getActiveParticipant($chat->id, $request->user()->id);
 
-        if (! $participant || $participant->left_at !== null) {
+        if (! $participant) {
             return response()->json([
                 'error' => 'forbidden',
                 'message' => 'You are not an active participant in this chat',
@@ -98,10 +97,10 @@ class GroupChatController extends Controller
 
     public function getMessages(Request $request, GroupChat $chat): JsonResponse
     {
-        if (! $this->isParticipant($chat, $request->user()->id)) {
+        if (! $this->getActiveParticipant($chat->id, $request->user()->id)) {
             return response()->json([
                 'error' => 'forbidden',
-                'message' => 'You are not a participant of this chat',
+                'message' => 'You are not an active participant in this chat',
             ], 403);
         }
 
@@ -127,10 +126,10 @@ class GroupChatController extends Controller
 
     public function markRead(MarkChatReadRequest $request, GroupChat $chat): JsonResponse
     {
-        if (! $this->isParticipant($chat, $request->user()->id)) {
+        if (! $this->getActiveParticipant($chat->id, $request->user()->id)) {
             return response()->json([
                 'error' => 'forbidden',
-                'message' => 'You are not a participant of this chat',
+                'message' => 'You are not an active participant in this chat',
             ], 403);
         }
 
@@ -160,14 +159,12 @@ class GroupChatController extends Controller
 
     public function updateDnd(UpdateDndRequest $request, GroupChat $chat): JsonResponse
     {
-        $participant = $chat->participants()
-            ->where('user_id', $request->user()->id)
-            ->first();
+        $participant = $this->getActiveParticipant($chat->id, $request->user()->id);
 
         if (! $participant) {
             return response()->json([
                 'error' => 'forbidden',
-                'message' => 'You are not a participant of this chat',
+                'message' => 'You are not an active participant in this chat',
             ], 403);
         }
 
@@ -180,8 +177,12 @@ class GroupChatController extends Controller
         ]);
     }
 
-    private function isParticipant(GroupChat $chat, int $userId): bool
+    private function getActiveParticipant(int $chatId, int $userId): ?GroupChatParticipant
     {
-        return $chat->participants()->where('user_id', $userId)->exists();
+        return GroupChatParticipant::query()
+            ->where('group_chat_id', $chatId)
+            ->where('user_id', $userId)
+            ->active()
+            ->first();
     }
 }

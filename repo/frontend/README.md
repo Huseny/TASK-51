@@ -79,9 +79,11 @@ Expected behavior:
 
 Auth behavior:
 
-- SPA auth uses secure cookie-backed session (`auth:sanctum`) with CSRF protection
-- backend must expose `GET /sanctum/csrf-cookie` and allow credentials from frontend origin
+- SPA auth uses Laravel Sanctum bearer tokens
+- login/register responses include `token`, `token_type`, and `expires_at`
+- frontend stores the token in memory with `localStorage` fallback and sends `Authorization: Bearer <token>` on every protected request
 - logout and account-switch flows purge auth-scoped service-worker caches (rides/chat) to prevent cross-user cached API leakage
+- Fleet managers now have a dedicated ride-management workspace at `/fleet/rides`
 
 If backend/runtime is unavailable in your environment, use:
 
@@ -115,8 +117,10 @@ docker compose up --build frontend
 
 - Reports export UI now uses approved backend directory choices (`/reports/export-directories`) instead of free-text destination input.
 
-## Security Note (Session Auth)
+## Security Note (Token Auth)
 
-- Frontend no longer persists access tokens in `localStorage`.
-- Auth now relies on HttpOnly cookie sessions and CSRF-protected requests.
+- Auth now relies on bearer tokens for API requests.
+- The token is cached in memory and rehydrated from `localStorage` after reload so `/auth/me` can restore the current user.
+- Offline queue replay uses the current bearer token at sync time instead of persisting credentialed cookie state in the queue.
 - Session clear/logout removes cached user, unread counters, toast state, and queued offline mutations.
+- Chat views respect active membership server-side, so removed participants are denied even if stale UI state exists.

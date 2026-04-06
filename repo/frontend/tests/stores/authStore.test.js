@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/authStore'
-import api, { clearOfflineQueue, ensureCsrfCookie, purgeAuthCaches } from '@/services/api'
+import api, { clearAuthToken, clearOfflineQueue, hasStoredAuthToken, purgeAuthCaches } from '@/services/api'
 
 vi.mock('@/services/api', () => ({
   default: {
     post: vi.fn(),
     get: vi.fn(),
   },
+  clearAuthToken: vi.fn(),
   clearOfflineQueue: vi.fn(),
-  ensureCsrfCookie: vi.fn(),
+  hasStoredAuthToken: vi.fn(),
   purgeAuthCaches: vi.fn(),
+  setAuthToken: vi.fn(),
 }))
 
 describe('authStore', () => {
@@ -18,13 +20,14 @@ describe('authStore', () => {
     setActivePinia(createPinia())
     localStorage.clear()
     vi.clearAllMocks()
+    hasStoredAuthToken.mockReturnValue(true)
   })
 
-  it('login action sets authenticated session on success', async () => {
-    ensureCsrfCookie.mockResolvedValueOnce({})
+  it('login action stores the bearer token and authenticated user on success', async () => {
     api.post.mockResolvedValueOnce({
       data: {
         user: { id: 1, username: 'rider01', role: 'rider' },
+        token: 'token-123',
       },
     })
 
@@ -61,11 +64,12 @@ describe('authStore', () => {
     expect(store.user).toBeNull()
     expect(store.isAuthenticated).toBe(false)
     expect(localStorage.getItem('roadlink_user')).toBeNull()
+    expect(clearAuthToken).toHaveBeenCalled()
     expect(clearOfflineQueue).toHaveBeenCalled()
     expect(purgeAuthCaches).toHaveBeenCalled()
   })
 
-  it('initialize restores session-backed user', async () => {
+  it('initialize restores token-backed user', async () => {
     localStorage.setItem('roadlink_user', JSON.stringify({ id: 5, username: 'fleet01', role: 'fleet_manager' }))
     api.get.mockResolvedValueOnce({ data: { user: { id: 5, username: 'fleet01', role: 'fleet_manager' } } })
 
@@ -74,6 +78,18 @@ describe('authStore', () => {
 
     expect(store.user.username).toBe('fleet01')
     expect(store.isAuthenticated).toBe(true)
+  })
+
+  it('initialize clears stale cached user when no token is available', async () => {
+    localStorage.setItem('roadlink_user', JSON.stringify({ id: 77, username: 'stale', role: 'admin' }))
+    hasStoredAuthToken.mockReturnValue(false)
+
+    const store = useAuthStore()
+    await store.initialize()
+
+    expect(store.user).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
+    expect(localStorage.getItem('roadlink_user')).toBeNull()
   })
 
   it('switching authenticated user clears offline queue', () => {

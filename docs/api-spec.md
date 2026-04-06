@@ -9,6 +9,28 @@ Base path: `/api/v1`
 | POST | `/auth/logout` | Auth | Revoke current token |
 | GET | `/auth/me` | Auth | Get current authenticated user |
 
+## Authentication Flow
+
+- Primary auth is Laravel Sanctum bearer tokens.
+- `POST /auth/register` and `POST /auth/login` return `user`, `token`, `token_type`, and `expires_at`.
+- Protected endpoints require `Authorization: Bearer <token>`.
+- `POST /auth/logout` revokes only the current bearer token.
+- Stateful cookie/session auth may still exist for legacy environments, but it is deprecated and no longer the primary API contract.
+
+Example:
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{"username":"driver01","password":"Driver1234!"}
+```
+
+```http
+GET /api/v1/auth/me
+Authorization: Bearer <token>
+```
+
 ## Rides
 
 | Method | Path | Auth | Description |
@@ -20,6 +42,18 @@ Base path: `/api/v1`
 | GET | `/driver/available-rides` | Driver/Admin | List nearby-in-time matching rides |
 | GET | `/driver/my-rides` | Driver/Admin | List driver-assigned rides |
 | GET | `/driver/my-rides/{rideOrder}` | Driver/Admin + policy | Show one driver ride |
+| GET | `/fleet/rides/queue` | Fleet/Admin | List dispatch queue rides awaiting assignment (`matching`) |
+| GET | `/fleet/rides/active` | Fleet/Admin | List active operational rides |
+| GET | `/fleet/rides/{rideOrder}` | Fleet/Admin | Show one operational ride with rider/driver/audit context |
+| GET | `/fleet/drivers` | Fleet/Admin | List dispatchable drivers |
+| PATCH | `/fleet/rides/{rideOrder}/assign` | Fleet/Admin | Assign a driver to a matching ride |
+| PATCH | `/fleet/rides/{rideOrder}/reassign` | Fleet/Admin | Reassign or requeue a ride |
+| PATCH | `/fleet/rides/{rideOrder}/cancel` | Fleet/Admin | Cancel an operational ride |
+
+### Ride Time Input
+
+- `POST /ride-orders` accepts normalized 24-hour timestamps and common 12-hour inputs.
+- Accepted examples include `2026-04-06 14:30`, `2026-04-06 2:30 PM`, and ISO-8601 values.
 
 ## Chat
 
@@ -30,6 +64,10 @@ Base path: `/api/v1`
 | GET | `/group-chats/{chat}/messages` | Auth participant | Poll messages |
 | POST | `/group-chats/{chat}/read` | Auth participant | Mark chat messages as read |
 | PATCH | `/group-chats/{chat}/dnd` | Auth participant | Update DND window |
+
+Chat authorization note:
+
+- "Participant" means active participant only. Rows with `left_at != null` are denied access to read, receipt, and DND endpoints.
 
 ## Vehicles & Media
 
@@ -70,6 +108,11 @@ Base path: `/api/v1`
 | GET | `/notification-subscriptions` | Auth | List subscriptions |
 | POST | `/notification-subscriptions` | Auth | Create subscription |
 | DELETE | `/notification-subscriptions/{notificationSubscription}` | Auth owner | Remove subscription |
+
+Notification authorization note:
+
+- Follower notifications require a real `user_follows` relationship.
+- User-created notification subscriptions are limited to `ride_order` and `product` entities.
 
 ## Recommendations & Telemetry
 

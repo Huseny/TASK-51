@@ -3,6 +3,8 @@ import DashboardPage from '@/pages/DashboardPage.vue'
 import DriverAvailableRidesPage from '@/pages/driver/DriverAvailableRidesPage.vue'
 import DriverMyRidesPage from '@/pages/driver/DriverMyRidesPage.vue'
 import DriverRideDetailPage from '@/pages/driver/DriverRideDetailPage.vue'
+import FleetRideManagementPage from '@/pages/fleet/FleetRideManagementPage.vue'
+import FleetRideDetailPage from '@/pages/fleet/FleetRideDetailPage.vue'
 import RideChatPage from '@/pages/chat/RideChatPage.vue'
 import ProductManagerPage from '@/pages/products/ProductManagerPage.vue'
 import ShopProductDetailPage from '@/pages/products/ShopProductDetailPage.vue'
@@ -106,6 +108,24 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         roles: ['driver', 'admin'],
+      },
+    },
+    {
+      path: '/fleet/rides',
+      name: 'fleet-rides',
+      component: FleetRideManagementPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['fleet_manager', 'admin'],
+      },
+    },
+    {
+      path: '/fleet/rides/:id',
+      name: 'fleet-ride-detail',
+      component: FleetRideDetailPage,
+      meta: {
+        requiresAuth: true,
+        roles: ['fleet_manager', 'admin'],
       },
     },
     {

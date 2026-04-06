@@ -47,6 +47,12 @@ stateDiagram-v2
 - Local filesystem storage avoids cloud dependencies and satisfies offline-first constraints for media and CSV exports.
 - Workbox-backed service worker + IndexedDB queue enables queued write operations with idempotency keys and reconnect sync.
 
+## Security + Traceability Notes
+
+- Group chat membership is stateful: active participation requires `group_chat_participants.left_at IS NULL`.
+- Fleet dispatch is separated from driver self-service through dedicated `/api/v1/fleet/*` routes and policies.
+- Recommendation reproducibility is versioned through structured feature-set tables instead of model snapshot JSON alone.
+
 ## Offline/No-External Dependency Notes
 
 - No external map, payment, auth, recommendation, or notification providers are required for core operation.

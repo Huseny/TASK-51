@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 
 class GroupChatParticipant extends Model
 {
@@ -35,5 +36,10 @@ class GroupChatParticipant extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('left_at');
     }
 }

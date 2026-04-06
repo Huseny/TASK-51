@@ -91,6 +91,20 @@ class RideOrderCreationTest extends TestCase
         $this->postJson('/api/v1/ride-orders', $this->payload())->assertStatus(401);
     }
 
+    public function test_rider_can_create_order_with_12_hour_time_format(): void
+    {
+        $rider = User::factory()->create(['role' => 'rider']);
+        Sanctum::actingAs($rider);
+
+        $payload = $this->payload();
+        $payload['time_window_start'] = now()->addHour()->format('Y-m-d g:i A');
+        $payload['time_window_end'] = now()->addHours(2)->format('Y-m-d g:i A');
+
+        $this->postJson('/api/v1/ride-orders', $payload)
+            ->assertStatus(201)
+            ->assertJsonPath('order.status', 'matching');
+    }
+
     /**
      * @return array<string, mixed>
      */

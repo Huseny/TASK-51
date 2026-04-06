@@ -88,4 +88,22 @@ class SystemNoticeTest extends TestCase
             'content' => 'driverNew has joined the group.',
         ]);
     }
+
+    public function test_user_left_notice_when_no_show_reassignment_removes_driver(): void
+    {
+        $stateMachine = app(RideOrderStateMachine::class);
+        $rider = User::factory()->create(['role' => 'rider']);
+        $driver = User::factory()->create(['role' => 'driver', 'username' => 'driverNoShow']);
+        $ride = RideOrder::factory()->create(['status' => 'matching', 'rider_id' => $rider->id]);
+
+        $accepted = $stateMachine->transition($ride, 'accept', $driver);
+        $stateMachine->transition($accepted, 'reassign', null, ['reason' => 'no_show_auto_revert']);
+
+        $chat = GroupChat::query()->where('ride_order_id', $ride->id)->firstOrFail();
+
+        $this->assertDatabaseHas('group_messages', [
+            'group_chat_id' => $chat->id,
+            'content' => 'driverNoShow has left the group.',
+        ]);
+    }
 }

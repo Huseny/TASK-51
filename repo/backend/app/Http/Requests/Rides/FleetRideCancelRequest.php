@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Notifications;
+namespace App\Http\Requests\Rides;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class NotificationSubscriptionRequest extends FormRequest
+class FleetRideCancelRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,8 +17,7 @@ class NotificationSubscriptionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'entity_type' => ['required', 'in:ride_order,product'],
-            'entity_id' => ['required', 'integer', 'min:1'],
+            'reason' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import api, { clearOfflineQueue, ensureCsrfCookie, purgeAuthCaches } from '@/services/api'
+import api, { clearAuthToken, clearOfflineQueue, hasStoredAuthToken, purgeAuthCaches, setAuthToken } from '@/services/api'
 
 const USER_KEY = 'roadlink_user'
 
@@ -13,8 +13,12 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   actions: {
-    persistSession(user) {
+    persistSession(user, token) {
       const previousUserId = this.user?.id
+
+      if (token) {
+        setAuthToken(token)
+      }
 
       this.user = user
       this.isAuthenticated = true
@@ -31,6 +35,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.isAuthenticated = false
       this.error = ''
+      clearAuthToken()
       localStorage.removeItem(USER_KEY)
       localStorage.removeItem('roadlink_chat_unread_total')
       sessionStorage.removeItem('roadlink_toast_message')
@@ -49,12 +54,8 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
 
       try {
-        try {
-          await ensureCsrfCookie()
-        } catch {
-        }
         const response = await api.post('/auth/login', { username, password })
-        this.persistSession(response.data.user)
+        this.persistSession(response.data.user, response.data.token)
         return { success: true }
       } catch (error) {
         const payload = error.response?.data || {}
@@ -75,12 +76,8 @@ export const useAuthStore = defineStore('auth', {
       this.error = ''
 
       try {
-        try {
-          await ensureCsrfCookie()
-        } catch {
-        }
         const response = await api.post('/auth/register', data)
-        this.persistSession(response.data.user)
+        this.persistSession(response.data.user, response.data.token)
         return { success: true }
       } catch (error) {
         const payload = error.response?.data || {}
@@ -104,10 +101,16 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async fetchMe() {
+      if (!hasStoredAuthToken()) {
+        this.clearSession()
+        return false
+      }
+
       try {
         const response = await api.get('/auth/me')
         this.user = response.data.user
         this.isAuthenticated = true
+        this.initialized = true
         localStorage.setItem(USER_KEY, JSON.stringify(response.data.user))
         return true
       } catch {
@@ -118,6 +121,12 @@ export const useAuthStore = defineStore('auth', {
 
     async initialize() {
       if (this.initialized) {
+        return
+      }
+
+      if (!hasStoredAuthToken()) {
+        this.clearSession()
+        this.initialized = true
         return
       }
 

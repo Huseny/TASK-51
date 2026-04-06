@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RecommendationModel extends Model
 {
@@ -34,5 +35,10 @@ class RecommendationModel extends Model
     public function results(): HasMany
     {
         return $this->hasMany(RecommendationResult::class, 'model_version_id');
+    }
+
+    public function featureSet(): HasOne
+    {
+        return $this->hasOne(RecommendationFeatureSet::class, 'recommendation_model_id');
     }
 }

@@ -8,6 +8,7 @@ import {
 
 const browserHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
 const configuredApiUrl = import.meta.env.VITE_API_URL
+const TOKEN_KEY = 'roadlink_auth_token'
 
 const normalizeApiUrlForLocalHost = (url) => {
   if (typeof window === 'undefined') {
@@ -29,21 +30,18 @@ const normalizeApiUrlForLocalHost = (url) => {
 }
 
 const API_URL = normalizeApiUrlForLocalHost(configuredApiUrl || `http://${browserHost}:8000/api/v1`)
-const API_ORIGIN = new URL(API_URL).origin
 
 const transport = axios.create({
   baseURL: API_URL,
   timeout: 15000,
-  withCredentials: true,
-  withXSRFToken: true,
-  xsrfCookieName: 'XSRF-TOKEN',
-  xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
 let forcedOnlineState = null
 let unauthorizedHandler = () => {
   localStorage.removeItem('roadlink_user')
+  localStorage.removeItem(TOKEN_KEY)
 }
+let authToken = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) || '' : ''
 
 const isMutatingMethod = (method) => ['post', 'put', 'patch', 'delete'].includes(String(method).toLowerCase())
 
@@ -69,6 +67,19 @@ const currentOwnerKey = () => {
   }
 }
 
+const getAuthToken = () => authToken || (typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) || '' : '')
+
+const withAuthHeader = (headers = {}) => {
+  const nextHeaders = { ...headers }
+  const token = getAuthToken()
+
+  if (token && !nextHeaders.Authorization) {
+    nextHeaders.Authorization = `Bearer ${token}`
+  }
+
+  return nextHeaders
+}
+
 const isOnline = () => {
   if (typeof forcedOnlineState === 'boolean') {
     return forcedOnlineState
@@ -82,7 +93,7 @@ const isOnline = () => {
 }
 
 const buildHeaders = (method, existingHeaders = {}) => {
-  const headers = { ...existingHeaders }
+  const headers = withAuthHeader(existingHeaders)
 
   if (isMutatingMethod(method) && !headers['X-Idempotency-Key']) {
     headers['X-Idempotency-Key'] = makeIdempotencyKey()
@@ -149,6 +160,29 @@ export const setUnauthorizedHandler = (handler) => {
   unauthorizedHandler = handler
 }
 
+export const setAuthToken = (token) => {
+  authToken = token || ''
+
+  if (typeof localStorage === 'undefined') {
+    return
+  }
+
+  if (authToken) {
+    localStorage.setItem(TOKEN_KEY, authToken)
+    return
+  }
+
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+export const clearAuthToken = () => {
+  setAuthToken('')
+}
+
+export const hasStoredAuthToken = () => getAuthToken() !== ''
+
+export const getStoredAuthToken = () => getAuthToken()
+
 export const __setOnlineStateForTests = (value) => {
   forcedOnlineState = value
 }
@@ -176,13 +210,6 @@ export const purgeAuthCaches = async () => {
   }
 }
 
-export const ensureCsrfCookie = async () => {
-  await axios.get(`${API_ORIGIN}/sanctum/csrf-cookie`, {
-    withCredentials: true,
-    timeout: 15000,
-  })
-}
-
 export const syncPendingActions = async () => {
   if (!isOnline()) {
     return
@@ -197,7 +224,7 @@ export const syncPendingActions = async () => {
         url: action.url,
         method: action.method,
         data: action.data,
-        headers: action.headers || {},
+        headers: withAuthHeader(action.headers || {}),
       })
 
       await removePendingAction(action.id)

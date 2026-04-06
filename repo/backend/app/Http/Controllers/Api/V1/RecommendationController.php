@@ -22,6 +22,7 @@ class RecommendationController extends Controller
             return response()->json([
                 'data' => $this->fallbackItems(),
                 'model_version' => null,
+                'feature_version' => null,
                 'fallback' => true,
             ]);
         }
@@ -37,6 +38,7 @@ class RecommendationController extends Controller
             return response()->json([
                 'data' => $this->fallbackItems(),
                 'model_version' => $activeModel->version,
+                'feature_version' => $activeModel->featureSet?->version,
                 'fallback' => true,
             ]);
         }
@@ -54,6 +56,7 @@ class RecommendationController extends Controller
         return response()->json([
             'data' => $data,
             'model_version' => $activeModel->version,
+            'feature_version' => $activeModel->featureSet?->version,
             'fallback' => false,
         ]);
     }

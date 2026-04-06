@@ -102,4 +102,46 @@ describe('DashboardPage', () => {
 
     expect(wrapper.text()).toContain('Summary offline')
   })
+
+  it('uses fleet ride endpoints for fleet-manager trip summary', async () => {
+    authState.user = { id: 15, username: 'fleet01', role: 'fleet_manager' }
+
+    getMock.mockImplementation((url) => {
+      if (url === '/fleet/rides/queue') {
+        return Promise.resolve({ data: { total: 4 } })
+      }
+
+      if (url === '/fleet/rides/active') {
+        return Promise.resolve({ data: { total: 3 } })
+      }
+
+      if (url === '/products') {
+        return Promise.resolve({ data: { data: [] } })
+      }
+
+      if (url === '/notifications/unread-count') {
+        return Promise.resolve({ data: { unread_count: 2 } })
+      }
+
+      if (url === '/recommendations') {
+        return Promise.resolve({ data: { data: [] } })
+      }
+
+      return Promise.reject(new Error(`Unexpected URL ${url}`))
+    })
+
+    const wrapper = mount(DashboardPage, {
+      global: {
+        stubs: {
+          AppShell: { template: '<div><slot /></div>' },
+          Card: { template: '<section><slot /></section>' },
+          Badge: { template: '<span><slot /></span>' },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('7')
+  })
 })

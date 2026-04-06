@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\NewAccessToken;
 
 class AuthService
 {
@@ -21,7 +22,7 @@ class AuthService
 
     /**
      * @param array<string, mixed> $data
-     * @return array{user: User}
+     * @return array{user: User, token: string, token_type: string, expires_at: string|null}
      */
     public function register(array $data): array
     {
@@ -39,7 +40,10 @@ class AuthService
             'role' => $user->role,
         ]);
 
-        return ['user' => $user];
+        return [
+            'user' => $user,
+            ...$this->issueTokenPayload($user),
+        ];
     }
 
     /**
@@ -107,6 +111,7 @@ class AuthService
             'status' => 200,
             'body' => [
                 'user' => $user,
+                ...$this->issueTokenPayload($user),
             ],
         ];
     }
@@ -122,6 +127,26 @@ class AuthService
                 'error' => 'invalid_credentials',
                 'message' => 'Invalid username or password',
             ],
+        ];
+    }
+
+    /**
+     * @return array{token: string, token_type: string, expires_at: string|null}
+     */
+    private function issueTokenPayload(User $user): array
+    {
+        $expirationMinutes = (int) config('sanctum.expiration', 720);
+        $expiresAt = $expirationMinutes > 0
+            ? now()->addMinutes($expirationMinutes)
+            : null;
+
+        /** @var NewAccessToken $token */
+        $token = $user->createToken('auth', ['*'], $expiresAt);
+
+        return [
+            'token' => $token->plainTextToken,
+            'token_type' => 'Bearer',
+            'expires_at' => $expiresAt?->toISOString(),
         ];
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\RecommendationFeatureSet;
+use App\Models\RecommendationFeatureValue;
 use App\Models\RecommendationModel;
 use App\Models\RecommendationResult;
 use App\Models\User;
@@ -13,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 class RecommendationService
 {
     private const TOP_K = 10;
+    private const FEATURE_SCHEMA_VERSION = 1;
 
     private const SCORE_WEIGHT_COLLAB = 0.6;
 
@@ -27,6 +30,14 @@ class RecommendationService
                 'version' => $nextVersion,
                 'is_active' => false,
                 'feature_snapshot' => ['status' => 'building'],
+                'created_at' => now(),
+            ]);
+
+            $featureSet = RecommendationFeatureSet::query()->create([
+                'recommendation_model_id' => $model->id,
+                'version' => $nextVersion,
+                'schema_version' => self::FEATURE_SCHEMA_VERSION,
+                'seed' => $this->seedForVersion($nextVersion),
                 'created_at' => now(),
             ]);
 
@@ -50,16 +61,48 @@ class RecommendationService
                 $normalizedCollab[(int) $itemId] = $maxCollab > 0 ? ($value / $maxCollab) : 0.0;
             }
 
+            $this->persistGlobalFeatureRows($featureSet, $normalizedCollab);
+
             $users = User::query()->get(['id']);
             $resultRows = [];
+            $featureRows = [];
 
             foreach ($users as $user) {
-                $recommendations = $this->recommendForUser($user, $products, $normalizedCollab);
+                $categoryWeights = $this->userCategoryWeights($user);
+                $tagWeights = $this->userTagWeights($user);
+
+                $featureRows[] = [
+                    'feature_set_id' => $featureSet->id,
+                    'user_id' => $user->id,
+                    'item_id' => null,
+                    'feature_key' => 'category_weights',
+                    'feature_value' => json_encode($categoryWeights, JSON_THROW_ON_ERROR),
+                    'created_at' => now(),
+                ];
+                $featureRows[] = [
+                    'feature_set_id' => $featureSet->id,
+                    'user_id' => $user->id,
+                    'item_id' => null,
+                    'feature_key' => 'tag_weights',
+                    'feature_value' => json_encode($tagWeights, JSON_THROW_ON_ERROR),
+                    'created_at' => now(),
+                ];
+
+                $recommendations = $this->recommendForUser(
+                    $user,
+                    $products,
+                    $normalizedCollab,
+                    $categoryWeights,
+                    $tagWeights,
+                    $featureSet,
+                    $featureRows,
+                );
 
                 $rank = 1;
                 foreach ($recommendations as $row) {
                     $resultRows[] = [
                         'model_version_id' => $model->id,
+                        'feature_set_id' => $featureSet->id,
                         'user_id' => $user->id,
                         'item_id' => $row['item_id'],
                         'score' => $row['score'],
@@ -73,6 +116,10 @@ class RecommendationService
 
             if (! empty($resultRows)) {
                 RecommendationResult::query()->insert($resultRows);
+            }
+
+            if (! empty($featureRows)) {
+                RecommendationFeatureValue::query()->insert($featureRows);
             }
 
             RecommendationModel::query()
@@ -89,6 +136,9 @@ class RecommendationService
                 'epsilon' => $this->epsilon(),
                 'max_items_per_seller' => $this->maxItemsPerSeller(),
                 'top_k' => self::TOP_K,
+                'feature_version' => $featureSet->version,
+                'feature_schema_version' => $featureSet->schema_version,
+                'seed' => $featureSet->seed,
             ];
             $model->save();
 
@@ -99,9 +149,20 @@ class RecommendationService
     /**
      * @param  Collection<int, Product>  $products
      * @param  array<int, float>  $normalizedCollab
+     * @param  array<string, float>  $categoryWeights
+     * @param  array<string, float>  $tagWeights
+     * @param  array<int, array<string, mixed>>  $featureRows
      * @return array<int, array{item_id: int, score: float, is_exploration: bool}>
      */
-    private function recommendForUser(User $user, Collection $products, array $normalizedCollab): array
+    private function recommendForUser(
+        User $user,
+        Collection $products,
+        array $normalizedCollab,
+        array $categoryWeights,
+        array $tagWeights,
+        RecommendationFeatureSet $featureSet,
+        array &$featureRows,
+    ): array
     {
         $interactedIds = UserInteraction::query()
             ->where('user_id', $user->id)
@@ -118,9 +179,6 @@ class RecommendationService
         if ($unseenProducts->isEmpty()) {
             return [];
         }
-
-        $categoryWeights = $this->userCategoryWeights($user);
-        $tagWeights = $this->userTagWeights($user);
 
         $rawContentScores = [];
         foreach ($unseenProducts as $product) {
@@ -149,15 +207,36 @@ class RecommendationService
             );
         }
 
-        return $this->selectTopKWithEpsilon($unseenProducts, $finalScores);
+        return $this->selectTopKWithEpsilon(
+            $unseenProducts,
+            $finalScores,
+            $normalizedCollab,
+            $rawContentScores,
+            $maxContent,
+            $user->id,
+            $featureSet,
+            $featureRows,
+        );
     }
 
     /**
      * @param  Collection<int, Product>  $products
      * @param  array<int, float>  $finalScores
+     * @param  array<int, float>  $normalizedCollab
+     * @param  array<int, float>  $rawContentScores
+     * @param  array<int, array<string, mixed>>  $featureRows
      * @return array<int, array{item_id: int, score: float, is_exploration: bool}>
      */
-    private function selectTopKWithEpsilon(Collection $products, array $finalScores): array
+    private function selectTopKWithEpsilon(
+        Collection $products,
+        array $finalScores,
+        array $normalizedCollab,
+        array $rawContentScores,
+        float $maxContent,
+        int $userId,
+        RecommendationFeatureSet $featureSet,
+        array &$featureRows,
+    ): array
     {
         $epsilon = $this->epsilon();
         $maxPerSeller = $this->maxItemsPerSeller();
@@ -169,6 +248,7 @@ class RecommendationService
 
         $selected = [];
         $sellerCounts = [];
+        $iteration = 0;
 
         while (count($selected) < self::TOP_K && $available->isNotEmpty()) {
             $allowedCandidates = $available
@@ -186,10 +266,10 @@ class RecommendationService
                 break;
             }
 
-            $isExploration = $this->randomFloat() < $epsilon;
+            $isExploration = $this->deterministicFloat($featureSet->seed, $userId, $iteration) < $epsilon;
 
             $picked = $isExploration
-                ? $allowedCandidates->random()
+                ? $allowedCandidates[$this->deterministicIndex($featureSet->seed, $userId, $iteration, $allowedCandidates->count())]
                 : $allowedCandidates->sortByDesc('score')->first();
 
             $product = $products->firstWhere('id', $picked['item_id']);
@@ -199,13 +279,30 @@ class RecommendationService
             }
 
             $sellerCounts[$product->seller_id] = ($sellerCounts[$product->seller_id] ?? 0) + 1;
+            $contentScore = $maxContent > 0 ? (($rawContentScores[$product->id] ?? 0.0) / $maxContent) : 0.0;
             $selected[] = [
                 'item_id' => (int) $picked['item_id'],
                 'score' => (float) $picked['score'],
                 'is_exploration' => $isExploration,
             ];
 
+            $featureRows[] = [
+                'feature_set_id' => $featureSet->id,
+                'user_id' => $userId,
+                'item_id' => (int) $picked['item_id'],
+                'feature_key' => 'result_inputs',
+                'feature_value' => json_encode([
+                    'collaborative_score' => (float) ($normalizedCollab[$product->id] ?? 0.0),
+                    'content_score' => (float) $contentScore,
+                    'final_score' => (float) $picked['score'],
+                    'is_exploration' => $isExploration,
+                    'selection_step' => $iteration,
+                ], JSON_THROW_ON_ERROR),
+                'created_at' => now(),
+            ];
+
             $available = $available->reject(fn (array $row): bool => $row['item_id'] === $picked['item_id'])->values();
+            $iteration++;
         }
 
         return $selected;
@@ -219,11 +316,6 @@ class RecommendationService
     private function maxItemsPerSeller(): int
     {
         return max(1, (int) config('roadlink.recommendations.max_items_per_seller', 2));
-    }
-
-    private function randomFloat(): float
-    {
-        return mt_rand() / mt_getrandmax();
     }
 
     /**
@@ -273,5 +365,90 @@ class RecommendationService
         }
 
         return $weights;
+    }
+
+    /**
+     * @return array<int, array{item_id: int, score: float, is_exploration: bool}>
+     */
+    public function replayRecommendationsFromFeatureSet(RecommendationFeatureSet $featureSet, User $user): array
+    {
+        $products = Product::query()
+            ->where('is_published', true)
+            ->get(['id', 'seller_id', 'category', 'tags']);
+
+        $normalizedCollab = RecommendationFeatureValue::query()
+            ->where('feature_set_id', $featureSet->id)
+            ->where('feature_key', 'normalized_collab')
+            ->get()
+            ->mapWithKeys(fn (RecommendationFeatureValue $value) => [(int) $value->item_id => (float) ($value->feature_value['score'] ?? 0.0)])
+            ->all();
+
+        $categoryWeights = RecommendationFeatureValue::query()
+            ->where('feature_set_id', $featureSet->id)
+            ->where('user_id', $user->id)
+            ->where('feature_key', 'category_weights')
+            ->first()?->feature_value ?? [];
+
+        $tagWeights = RecommendationFeatureValue::query()
+            ->where('feature_set_id', $featureSet->id)
+            ->where('user_id', $user->id)
+            ->where('feature_key', 'tag_weights')
+            ->first()?->feature_value ?? [];
+
+        $discard = [];
+
+        return $this->recommendForUser(
+            $user,
+            $products,
+            $normalizedCollab,
+            is_array($categoryWeights) ? $categoryWeights : [],
+            is_array($tagWeights) ? $tagWeights : [],
+            $featureSet,
+            $discard,
+        );
+    }
+
+    /**
+     * @param  array<int, float>  $normalizedCollab
+     */
+    private function persistGlobalFeatureRows(RecommendationFeatureSet $featureSet, array $normalizedCollab): void
+    {
+        if (empty($normalizedCollab)) {
+            return;
+        }
+
+        $rows = collect($normalizedCollab)->map(fn (float $score, int $itemId) => [
+            'feature_set_id' => $featureSet->id,
+            'user_id' => null,
+            'item_id' => $itemId,
+            'feature_key' => 'normalized_collab',
+            'feature_value' => json_encode(['score' => $score], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+        ])->all();
+
+        RecommendationFeatureValue::query()->insert($rows);
+    }
+
+    private function seedForVersion(int $version): int
+    {
+        return crc32(sprintf('recommendation-feature-set-%d', $version));
+    }
+
+    private function deterministicFloat(int $seed, int $userId, int $iteration): float
+    {
+        $hash = hash('sha256', sprintf('%d|%d|%d|float', $seed, $userId, $iteration));
+        $slice = substr($hash, 0, 8);
+
+        return hexdec($slice) / 0xFFFFFFFF;
+    }
+
+    private function deterministicIndex(int $seed, int $userId, int $iteration, int $count): int
+    {
+        if ($count <= 1) {
+            return 0;
+        }
+
+        $hash = hash('sha256', sprintf('%d|%d|%d|index', $seed, $userId, $iteration));
+        return hexdec(substr($hash, 0, 8)) % $count;
     }
 }

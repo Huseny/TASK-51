@@ -69,3 +69,23 @@
    - **Question**: What happens if a queued offline request fails during sync (for example, a 422 validation error)?
    - **My Understanding**: The user should be notified and the request should not be retried indefinitely by default.
    - **Solution**: Implemented an error toast on sync failure and discarded the failed queue item in this MVP flow.
+
+15. [Removed Chat Participant Access]
+   - **Question**: Does historical chat membership still grant read access after a participant leaves?
+   - **My Understanding**: No. Once `left_at` is populated, the user must lose all chat access immediately.
+   - **Solution**: Centralized active-participant checks and enforced `whereNull('left_at')` on chat reads, receipts, and DND updates.
+
+16. [Follower Notification Trust Boundary]
+   - **Question**: Can a user-controlled notification subscription authorize follower notifications?
+   - **My Understanding**: No. Follower notifications must come only from a real follow relationship.
+   - **Solution**: Removed subscription-based follower authorization and restricted subscriptions to ride/product entities.
+
+17. [Fleet Operations Scope]
+   - **Question**: Should fleet managers operate through driver endpoints or through a separate operations surface?
+   - **My Understanding**: Separate operations surface. Fleet dispatch is different from driver self-service.
+   - **Solution**: Added dedicated `/fleet/rides/*` APIs and fleet UI for queue monitoring, assignment, reassignment, and cancellation.
+
+18. [Recommendation Reproducibility]
+   - **Question**: Is a JSON summary enough to reproduce recommendation outputs?
+   - **My Understanding**: No. Reproducibility requires versioned structured inputs and deterministic selection.
+   - **Solution**: Added recommendation feature-set/value persistence plus deterministic seeded selection for replay.

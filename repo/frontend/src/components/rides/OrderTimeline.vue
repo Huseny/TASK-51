@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatReassignmentReason, isReassignmentEvent } from '@/utils/rideReassignment'
 
 const props = defineProps({
   logs: {
@@ -31,6 +32,16 @@ const formatRelative = (dateValue) => {
 
   return `${Math.floor(seconds / 86400)}d ago`
 }
+
+const formatDetail = (entry) => {
+  if (isReassignmentEvent(entry)) {
+    const reason = entry.metadata?.reassignment_reason || entry.trigger_reason
+
+    return `Driver reassigned · ${formatReassignmentReason(reason)} · by ${entry.triggered_by}`
+  }
+
+  return `${entry.trigger_reason || 'status_update'} · by ${entry.triggered_by}`
+}
 </script>
 
 <template>
@@ -42,7 +53,7 @@ const formatRelative = (dateValue) => {
           <strong>{{ entry.from_status }} → {{ entry.to_status }}</strong>
           <span :title="new Date(entry.created_at).toLocaleString()">{{ formatRelative(entry.created_at) }}</span>
         </div>
-        <p class="timeline__detail">{{ entry.trigger_reason || 'status_update' }} · by {{ entry.triggered_by }}</p>
+        <p class="timeline__detail">{{ formatDetail(entry) }}</p>
       </div>
     </article>
   </section>

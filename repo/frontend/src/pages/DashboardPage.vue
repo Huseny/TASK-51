@@ -34,6 +34,15 @@ const fetchTripsSummary = async () => {
     return extractTotal(response.data)
   }
 
+  if (user.value.role === 'fleet_manager') {
+    const [queueResponse, activeResponse] = await Promise.all([
+      api.get('/fleet/rides/queue', { params: { per_page: 1 } }),
+      api.get('/fleet/rides/active', { params: { per_page: 1 } }),
+    ])
+
+    return extractTotal(queueResponse.data) + extractTotal(activeResponse.data)
+  }
+
   return 0
 }
 

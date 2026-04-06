@@ -47,13 +47,22 @@ class RideOrderStateMachine
             $lockedOrder->status = $transition['to_status'];
             $lockedOrder->save();
 
+            $auditMetadata = [
+                ...$metadata,
+                'previous_driver_id' => $previousDriverId,
+                'new_driver_id' => $lockedOrder->driver_id,
+                'driver_changed' => $previousDriverId !== $lockedOrder->driver_id,
+                'driver_reassigned' => $action === 'reassign',
+                'reassignment_reason' => $action === 'reassign' ? $transition['reason'] : null,
+            ];
+
             RideOrderAuditLog::query()->create([
                 'ride_order_id' => $lockedOrder->id,
                 'from_status' => $fromStatus,
                 'to_status' => $transition['to_status'],
                 'triggered_by' => $actor ? (string) $actor->id : 'system',
                 'trigger_reason' => $transition['reason'],
-                'metadata' => $metadata,
+                'metadata' => $auditMetadata,
                 'created_at' => now(),
             ]);
 
@@ -73,8 +82,9 @@ class RideOrderStateMachine
                 $transition['to_status'],
                 [
                     'previous_driver_id' => $previousDriverId,
+                    'new_driver_id' => $lockedOrder->driver_id,
                     'actor_id' => $actor?->id,
-                    'metadata' => $metadata,
+                    'metadata' => $auditMetadata,
                 ],
             );
 

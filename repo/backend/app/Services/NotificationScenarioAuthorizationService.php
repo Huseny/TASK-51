@@ -3,10 +3,8 @@
 namespace App\Services;
 
 use App\Models\RideOrder;
-use App\Models\NotificationSubscription;
 use App\Models\User;
 use App\Models\UserFollow;
-use Illuminate\Support\Facades\Schema;
 
 class NotificationScenarioAuthorizationService
 {
@@ -24,21 +22,9 @@ class NotificationScenarioAuthorizationService
         }
 
         if ($scenario === 'follower') {
-            if (Schema::hasTable('user_follows')) {
-                $hasDirectFollow = UserFollow::query()
-                    ->where('follower_id', $actor->id)
-                    ->where('followed_id', $recipient->id)
-                    ->exists();
-
-                if ($hasDirectFollow) {
-                    return true;
-                }
-            }
-
-            return NotificationSubscription::query()
-                ->where('user_id', $actor->id)
-                ->where('entity_type', 'follow_user')
-                ->where('entity_id', $recipient->id)
+            return UserFollow::query()
+                ->where('follower_id', $actor->id)
+                ->where('followed_id', $recipient->id)
                 ->exists();
         }
 

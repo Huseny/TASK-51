@@ -7,6 +7,7 @@ import OrderTimeline from '@/components/rides/OrderTimeline.vue'
 import Button from '@/components/ui/Button.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { getLatestReassignment } from '@/utils/rideReassignment'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,7 +25,8 @@ let pollTimer = null
 let unreadPollTimer = null
 
 const user = computed(() => authStore.user || { username: 'Guest', role: 'rider' })
-const reassigned = computed(() => (order.value?.audit_logs || []).some((entry) => entry.from_status === 'exception' && entry.to_status === 'matching'))
+const latestReassignment = computed(() => getLatestReassignment(order.value?.audit_logs || []))
+const reassigned = computed(() => latestReassignment.value !== null)
 
 const startCountdownRefresh = () => {
   if (countdownTimer) {
@@ -143,7 +145,12 @@ onBeforeUnmount(() => {
       <AutoCancelCountdown v-if="order.status === 'matching'" :seconds="countdownSeconds" />
 
       <div v-if="reassigned" class="reassign-notice">
-        ⚠️ Your trip is being reassigned to a new driver. You will be notified when a new driver accepts.
+        <p class="reassign-notice__title">Driver reassigned</p>
+        <p class="reassign-notice__body">
+          Reason: {{ latestReassignment.reasonLabel }}.
+          <span v-if="latestReassignment.driverUnavailable">Your previous driver is no longer assigned.</span>
+          <span v-else>Driver assignment has changed for this trip.</span>
+        </p>
       </div>
 
       <section class="timeline-wrapper glass-card">
@@ -224,6 +231,16 @@ h3 {
   border-radius: var(--radius-md);
   color: #ffdfa5;
   padding: 10px 12px;
+}
+
+.reassign-notice__title,
+.reassign-notice__body {
+  margin: 0;
+}
+
+.reassign-notice__title {
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
 input {

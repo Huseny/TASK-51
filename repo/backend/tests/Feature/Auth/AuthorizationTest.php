@@ -54,6 +54,20 @@ class AuthorizationTest extends TestCase
             ->assertStatus(200);
     }
 
+    public function test_fleet_manager_can_access_fleet_ride_workspace(): void
+    {
+        $fleet = User::factory()->create([
+            'username' => 'fleet_guard',
+            'role' => 'fleet_manager',
+        ]);
+
+        $token = $fleet->createToken('auth', ['*'], now()->addHours(12))->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/fleet/rides/queue')
+            ->assertStatus(200);
+    }
+
     public function test_expired_token_returns_401(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-03-25 10:00:00'));

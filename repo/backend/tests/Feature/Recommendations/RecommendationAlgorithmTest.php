@@ -4,6 +4,8 @@ namespace Tests\Feature\Recommendations;
 
 use App\Jobs\ComputeRecommendations;
 use App\Models\Product;
+use App\Models\RecommendationFeatureSet;
+use App\Models\RecommendationFeatureValue;
 use App\Models\RecommendationModel;
 use App\Models\RecommendationResult;
 use App\Models\User;
@@ -69,6 +71,22 @@ class RecommendationAlgorithmTest extends TestCase
         $this->assertSame('epsilon_greedy', $firstModel->feature_snapshot['policy']);
         $this->assertSame(1.0, (float) $firstModel->feature_snapshot['epsilon']);
         $this->assertSame(2, (int) $firstModel->feature_snapshot['max_items_per_seller']);
+        $this->assertSame($firstModel->version, (int) $firstModel->feature_snapshot['feature_version']);
+
+        $featureSet = RecommendationFeatureSet::query()
+            ->where('recommendation_model_id', $firstModel->id)
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('recommendation_feature_values', [
+            'feature_set_id' => $featureSet->id,
+            'feature_key' => 'category_weights',
+            'user_id' => $userA->id,
+        ]);
+        $this->assertDatabaseHas('recommendation_feature_values', [
+            'feature_set_id' => $featureSet->id,
+            'feature_key' => 'normalized_collab',
+        ]);
+        $this->assertSame(10, RecommendationResult::query()->where('feature_set_id', $featureSet->id)->count());
 
         $sellerCounts = [];
         foreach ($results as $result) {
@@ -127,6 +145,55 @@ class RecommendationAlgorithmTest extends TestCase
                 ->where('user_id', $user->id)
                 ->where('is_exploration', true)
                 ->count()
+        );
+    }
+
+    public function test_recommendations_can_be_replayed_from_saved_feature_set(): void
+    {
+        config()->set('roadlink.recommendations.epsilon', 0.0);
+
+        $user = User::factory()->create(['role' => 'rider']);
+        $seller = User::factory()->create(['role' => 'fleet_manager']);
+
+        $products = Product::factory()->count(5)->create([
+            'seller_id' => $seller->id,
+            'is_published' => true,
+            'category' => 'gear',
+            'tags' => ['road', 'safety'],
+        ]);
+
+        UserInteraction::query()->create([
+            'user_id' => $user->id,
+            'item_id' => $products->first()->id,
+            'interaction_type' => 'purchase',
+            'score' => 5.0,
+            'created_at' => now(),
+        ]);
+
+        ComputeRecommendations::dispatchSync();
+
+        $model = RecommendationModel::query()->where('is_active', true)->firstOrFail();
+        $featureSet = $model->featureSet()->firstOrFail();
+
+        $stored = RecommendationResult::query()
+            ->where('model_version_id', $model->id)
+            ->where('user_id', $user->id)
+            ->orderBy('rank_order')
+            ->get(['item_id', 'score', 'is_exploration'])
+            ->map(fn (RecommendationResult $result) => [
+                'item_id' => $result->item_id,
+                'score' => $result->score,
+                'is_exploration' => $result->is_exploration,
+            ])
+            ->all();
+
+        $replayed = app(\App\Services\RecommendationService::class)
+            ->replayRecommendationsFromFeatureSet($featureSet, $user);
+
+        $this->assertSame($stored, $replayed);
+        $this->assertGreaterThan(
+            0,
+            RecommendationFeatureValue::query()->where('feature_set_id', $featureSet->id)->count()
         );
     }
 }

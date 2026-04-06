@@ -2,6 +2,20 @@
 
 Offline-capable mobility + commerce platform built with Laravel + Vue.
 
+## Authentication
+
+- Primary API auth is Laravel Sanctum bearer tokens.
+- `POST /api/v1/auth/register` and `POST /api/v1/auth/login` return `{ user, token, token_type, expires_at }`.
+- Protected requests must send `Authorization: Bearer <token>`.
+- The Vue SPA persists the token in memory with `localStorage` fallback and rehydrates the user via `GET /api/v1/auth/me`.
+- Legacy cookie/session auth may still work for some stateful environments, but it is deprecated and no longer the primary contract.
+
+## Security Highlights
+
+- Chat access is limited to active participants only. Users with `left_at` set cannot read messages, mark reads, or update DND.
+- Follower notifications require a real `user_follows` relationship. User-created notification subscriptions cannot spoof follower events.
+- Fleet managers now have a dedicated ride-operations surface for dispatch, reassignment, cancellation, and active-trip monitoring.
+
 ## Project Structure
 
 ```text
@@ -67,6 +81,17 @@ Docker all-in-one test run:
 
 ```bash
 ./run_tests.sh
+```
+
+Example login flow:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"driver01","password":"Driver1234!"}'
+
+curl http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Backend Non-Docker Test Run (Local PHP)
