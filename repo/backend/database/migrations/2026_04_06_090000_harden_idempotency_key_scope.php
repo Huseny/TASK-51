@@ -47,4 +47,4 @@ return new class extends Migration
             $table->dropColumn(['user_id', 'actor_identifier', 'canonical_path', 'request_hash']);
         });
     }
-}
+};
