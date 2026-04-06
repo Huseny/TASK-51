@@ -17,7 +17,10 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
 
             $table->unique('version');
-            $table->index(['recommendation_model_id', 'version']);
+            $table->index(
+                ['recommendation_model_id', 'version'],
+                'rec_feat_sets_model_ver_idx'
+            );
         });
 
         Schema::create('recommendation_feature_values', function (Blueprint $table): void {
@@ -37,13 +40,17 @@ return new class extends Migration
         Schema::table('recommendation_results', function (Blueprint $table): void {
             $table->foreignId('feature_set_id')->nullable()->after('model_version_id')
                 ->constrained('recommendation_feature_sets')->nullOnDelete();
-            $table->index(['feature_set_id', 'user_id', 'rank_order']);
+            $table->index(
+                ['feature_set_id', 'user_id', 'rank_order'],
+                'rec_results_feat_user_rank_idx'
+            );
         });
     }
 
     public function down(): void
     {
         Schema::table('recommendation_results', function (Blueprint $table): void {
+            $table->dropIndex('rec_results_feat_user_rank_idx');
             $table->dropConstrainedForeignId('feature_set_id');
         });
 

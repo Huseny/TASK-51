@@ -18,7 +18,10 @@ return new class extends Migration
             $table->boolean('is_exploration')->default(false);
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['model_version_id', 'user_id', 'rank_order']);
+            $table->index(
+                ['model_version_id', 'user_id', 'rank_order'],
+                'rec_results_model_user_rank_idx'
+            );
         });
     }
 
