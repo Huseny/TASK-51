@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
+export TERM="${TERM:-xterm-256color}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "[run_tests.sh] docker is required but was not found in PATH."
@@ -44,7 +45,7 @@ wait_for_container() {
 
 wait_for_backend_ready() {
   wait_for_container "backend" \
-    "curl -sf http://localhost:8000 >/dev/null 2>&1" \
+    "php -r '\$ctx = stream_context_create([\"http\" => [\"timeout\" => 2]]); \$body = @file_get_contents(\"http://127.0.0.1:8000/up\", false, \$ctx); exit(\$body === false ? 1 : 0);'" \
     "http server"
 }
 
@@ -53,6 +54,9 @@ wait_for_frontend_ready() {
     "test -d node_modules" \
     "npm install"
 }
+
+echo "[run_tests.sh] Building and starting containers..."
+docker compose up --build -d mysql backend scheduler frontend
 
 wait_for_backend_ready
 wait_for_frontend_ready

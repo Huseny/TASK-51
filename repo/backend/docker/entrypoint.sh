@@ -40,17 +40,26 @@ fi
 
 if [ "$DB_CONNECTION" = "mysql" ]; then
   echo "Waiting for MySQL..."
+  connected=0
   for i in $(seq 1 60); do
-    php -r "try { new PDO('mysql:host=' . getenv('DB_HOST') . ';port=' . getenv('DB_PORT') . ';dbname=' . getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD')); echo 'ok'; } catch (Throwable $e) { exit(1); }" >/dev/null 2>&1 && break
+    if php -r "try { new PDO('mysql:host=' . getenv('DB_HOST') . ';port=' . getenv('DB_PORT') . ';dbname=' . getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD')); echo 'ok'; } catch (Throwable \$e) { exit(1); }" >/dev/null 2>&1; then
+      connected=1
+      break
+    fi
     sleep 2
   done
+
+  if [ "$connected" -ne 1 ]; then
+    echo "MySQL did not become ready in time."
+    exit 1
+  fi
 fi
 
 rm -f bootstrap/cache/config.php
 php artisan config:clear || true
 
 if echo "$*" | grep -q "serve"; then
-  php artisan migrate:fresh --force
+  php artisan migrate --force
 
   php artisan storage:link || true
 

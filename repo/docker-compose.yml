@@ -3,6 +3,7 @@ services:
     image: mysql:8.0
     container_name: roadlink-mysql
     environment:
+      TERM: xterm-256color
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: roadlink
       MYSQL_USER: roadlink
@@ -23,6 +24,7 @@ services:
       dockerfile: docker/Dockerfile
     container_name: roadlink-backend
     environment:
+      TERM: xterm-256color
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000
@@ -38,6 +40,17 @@ services:
       - backend_vendor:/var/www/html/vendor
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          php -r '$$ctx = stream_context_create(["http" => ["timeout" => 2]]);
+          $$body = @file_get_contents("http://127.0.0.1:8000/up", false, $$ctx);
+          exit($$body === false ? 1 : 0);'
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
     depends_on:
       mysql:
         condition: service_healthy
@@ -48,6 +61,7 @@ services:
       dockerfile: docker/Dockerfile
     container_name: roadlink-scheduler
     environment:
+      TERM: xterm-256color
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000
@@ -60,19 +74,20 @@ services:
       QUEUE_CONNECTION: sync
     volumes:
       - ./backend:/var/www/html
-      - scheduler_vendor:/var/www/html/vendor
+      - backend_vendor:/var/www/html/vendor
     command: ["php", "artisan", "schedule:work"]
     depends_on:
       mysql:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     image: node:20-alpine
     container_name: roadlink-frontend
     working_dir: /app
     environment:
+      TERM: xterm-256color
       VITE_API_URL: http://localhost:8000/api/v1
     volumes:
       - ./frontend:/app
@@ -87,4 +102,3 @@ volumes:
   mysql_data:
   frontend_node_modules:
   backend_vendor:
-  scheduler_vendor:
