@@ -106,20 +106,26 @@ const submitCreate = async () => {
       time_window_end: toBackendDate(form.value.date, form.value.end_time),
       notes: form.value.notes || null,
     })
-
-    showCreateModal.value = false
-    form.value = {
-      origin_address: '',
-      destination_address: '',
-      rider_count: 1,
-      date: '',
-      start_time: '',
-      end_time: '',
-      notes: '',
-    }
-    await fetchOrders()
   } catch (error) {
     createError.value = error.response?.data?.message || 'Failed to create trip request.'
+    isLoading.value = false
+    return
+  }
+
+  showCreateModal.value = false
+  form.value = {
+    origin_address: '',
+    destination_address: '',
+    rider_count: 1,
+    date: '',
+    start_time: '',
+    end_time: '',
+    notes: '',
+  }
+
+  try {
+    await fetchOrders()
+  } catch {
   } finally {
     isLoading.value = false
   }
