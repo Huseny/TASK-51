@@ -1,71 +1,30 @@
 # RoadLink Backend (Laravel API)
 
-## Local Non-Docker Verification
+> **All setup and execution must be done via Docker. No local PHP, Composer, or MySQL
+> installation is required on the host machine.**
+>
+> See the root `README.md` for the full verification checklist and quick-start steps.
 
-### Path A: Run tests only (default SQLite in-memory)
+## Running Tests
 
-Use this path for default automated verification.
+From `repo/`:
 
-`php artisan test` uses SQLite in-memory by default via `phpunit.xml`:
+```bash
+# Run backend tests via Docker (SQLite in-memory, no MySQL needed)
+docker-compose exec backend php artisan test
+```
+
+Or use the all-in-one wrapper:
+
+```bash
+./run_tests.sh
+```
+
+Tests use the `phpunit.xml` environment overrides:
 
 - `DB_CONNECTION=sqlite`
 - `DB_DATABASE=:memory:`
-
-From `repo/backend`:
-
-```bash
-cp .env.example .env
-composer install
-php artisan key:generate
-php artisan test
-```
-
-MySQL is not required for this default test path.
-
-### Path B: Run app locally with MySQL (manual runtime/API verification)
-
-Use this path when you want to run the backend server and manually verify API behavior against a local MySQL instance.
-
-Prerequisites:
-
-- PHP 8.2+
-- Composer 2+
-- MySQL 8+
-- PHP extensions: `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`
-
-From `repo/backend`:
-
-```bash
-cp .env.example .env
-composer install
-php artisan key:generate
-php artisan migrate:fresh --seed
-php artisan serve --host=127.0.0.1 --port=8000
-```
-
-Optional: if you want MySQL-backed tests instead of default SQLite in-memory, override DB env vars for the test command, for example:
-
-```bash
-DB_CONNECTION=mysql DB_DATABASE=your_test_db DB_USERNAME=your_user DB_PASSWORD=your_password php artisan test
-```
-
-Or run the bundled verification script:
-
-```bash
-bash scripts/verify-local.sh
-```
-
-### Verification Checklist (Expected Pass Indicators)
-
-1. `composer install` completes without dependency errors.
-2. `php artisan key:generate` returns success and sets `APP_KEY`.
-3. `php artisan migrate:fresh --seed` completes with all migrations/seeders applied.
-4. `php artisan test` finishes with all tests passing.
-5. Quick smoke endpoint checks:
-   - `GET /api/v1/auth/me` without token returns `401` JSON.
-   - `GET /api/v1/reports/trends` without token returns `401` JSON.
-
-If any step fails, confirm DB connectivity (`DB_*` values in `.env`) and required PHP extensions.
+- `QUEUE_CONNECTION=sync`
 
 ## Report Export Destination Semantics
 
@@ -94,17 +53,6 @@ If any step fails, confirm DB connectivity (`DB_*` values in `.env`) and require
 - Recommendation policy is epsilon-greedy via `ROADLINK_RECOMMENDATION_EPSILON` (default `0.10`) and `ROADLINK_RECOMMENDATION_MAX_PER_SELLER` (default `2`).
 - Recommendation runs persist structured feature sets and feature values by version for deterministic replay.
 
-Example:
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin01","password":"Admin12345!"}'
-
-curl http://127.0.0.1:8000/api/v1/auth/me \
-  -H "Authorization: Bearer <token>"
-```
-
 ## Notification Scenarios
 
 - `POST /api/v1/notifications/events` can publish explicit in-app scenarios for comment, reply, mention, follower, moderation, and announcement events.
@@ -117,16 +65,10 @@ curl http://127.0.0.1:8000/api/v1/auth/me \
 - If `notification_frequency_type_column` is `false`, ride completion still degrades safely, but you should migrate immediately.
 - Application startup logs a warning when `notification_frequency_logs.type` is missing.
 
-Local non-Docker recovery steps from `repo/backend`:
+To recover from schema drift:
 
 ```bash
-php artisan migrate
-php artisan optimize:clear
-php artisan test
-```
-
-For SQLite local verification (no MySQL driver):
-
-```bash
-DB_CONNECTION=sqlite DB_DATABASE="$(pwd)/database/database.sqlite" php artisan migrate
+docker-compose exec backend php artisan migrate
+docker-compose exec backend php artisan optimize:clear
+docker-compose exec backend php artisan test
 ```

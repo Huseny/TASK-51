@@ -89,6 +89,7 @@ services:
     environment:
       TERM: xterm-256color
       VITE_API_URL: http://localhost:8000/api/v1
+      VITEST_API_URL: http://backend:8000/api/v1
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
