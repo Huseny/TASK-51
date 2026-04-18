@@ -16,6 +16,22 @@ const HEALTH_URL = BASE.replace(/\/api\/v1$/, '')
 
 const uid = () => `http_test_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
 
+const pad = (n) => String(n).padStart(2, '0')
+
+const futureBackendDateTime = (minutesAhead) => {
+  const d = new Date(Date.now() + minutesAhead * 60_000)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+const validRideOrderPayload = (overrides = {}) => ({
+  origin_address: '1 Integration St',
+  destination_address: '2 Test Ave',
+  rider_count: 1,
+  time_window_start: futureBackendDateTime(60),
+  time_window_end: futureBackendDateTime(180),
+  ...overrides,
+})
+
 const post = (path, body, token) =>
   fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -169,14 +185,10 @@ describe('backend integration', () => {
 
       const createRes = await post(
         '/ride-orders',
-        {
+        validRideOrderPayload({
           origin_address: '1 Integration St',
           destination_address: '2 Test Ave',
-          origin_lat: 40.712776,
-          origin_lng: -74.005974,
-          destination_lat: 40.73061,
-          destination_lng: -73.935242,
-        },
+        }),
         token,
       )
       expect(createRes.status).toBe(201)
@@ -198,14 +210,10 @@ describe('backend integration', () => {
 
       await post(
         '/ride-orders',
-        {
+        validRideOrderPayload({
           origin_address: 'A St',
           destination_address: 'B St',
-          origin_lat: 1,
-          origin_lng: 1,
-          destination_lat: 2,
-          destination_lng: 2,
-        },
+        }),
         token,
       )
 
@@ -221,14 +229,10 @@ describe('backend integration', () => {
       const { token } = await registerAndLogin('driver')
       const res = await post(
         '/ride-orders',
-        {
+        validRideOrderPayload({
           origin_address: 'X',
           destination_address: 'Y',
-          origin_lat: 1,
-          origin_lng: 1,
-          destination_lat: 2,
-          destination_lng: 2,
-        },
+        }),
         token,
       )
       expect(res.status).toBe(403)
@@ -280,8 +284,8 @@ describe('backend integration', () => {
       const res = await get('/notifications/unread-count', token)
       expect(res.status).toBe(200)
       const data = await res.json()
-      expect(data).toHaveProperty('count')
-      expect(typeof data.count).toBe('number')
+      expect(data).toHaveProperty('unread_count')
+      expect(typeof data.unread_count).toBe('number')
     })
 
     maybeIt('PATCH /notifications/read-all marks all notifications read', async () => {
@@ -292,7 +296,7 @@ describe('backend integration', () => {
 
       const countRes = await get('/notifications/unread-count', token)
       const countData = await countRes.json()
-      expect(countData.count).toBe(0)
+      expect(countData.unread_count).toBe(0)
     })
   })
 
@@ -317,14 +321,10 @@ describe('backend integration', () => {
       const { token } = await registerAndLogin('rider')
       const createRes = await post(
         '/ride-orders',
-        {
+        validRideOrderPayload({
           origin_address: 'Contract Test Origin',
           destination_address: 'Contract Test Dest',
-          origin_lat: 51.5,
-          origin_lng: -0.1,
-          destination_lat: 51.51,
-          destination_lng: -0.09,
-        },
+        }),
         token,
       )
       const { order } = await createRes.json()

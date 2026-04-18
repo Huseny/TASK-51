@@ -15,6 +15,8 @@ const form = ref({
   role: 'rider',
 })
 
+const authError = ref('')
+
 const checks = computed(() => ({
   minLength: form.value.password.length >= 10,
   hasLetter: /[A-Za-z]/.test(form.value.password),
@@ -22,12 +24,15 @@ const checks = computed(() => ({
 }))
 
 const submitRegister = async () => {
-  authStore.error = ''
+  authError.value = ''
   const result = await authStore.register(form.value)
 
   if (result.success) {
     await router.push('/dashboard')
+    return
   }
+
+  authError.value = useAuthStore().error || ''
 }
 </script>
 
@@ -77,7 +82,7 @@ const submitRegister = async () => {
             <li :class="{ met: checks.hasNumber }">{{ checks.hasNumber ? '✓' : '•' }} Contains a number</li>
           </ul>
 
-          <p v-if="authStore.error" class="error-text">{{ authStore.error }}</p>
+          <p v-if="authError" class="error-text">{{ authError }}</p>
 
           <Button type="submit" :loading="authStore.isLoading">
             Create Account

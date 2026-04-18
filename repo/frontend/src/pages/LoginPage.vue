@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
@@ -12,9 +12,8 @@ const username = ref('')
 const password = ref('')
 const lockedUntil = ref('')
 const countdown = ref('')
+const authError = ref('')
 let timer = null
-
-const authError = computed(() => authStore.error)
 
 const clearTimer = () => {
   if (timer) {
@@ -47,13 +46,15 @@ const startCountdown = (lockIso) => {
 }
 
 const submitLogin = async () => {
-  authStore.error = ''
+  authError.value = ''
   const result = await authStore.login(username.value, password.value)
 
   if (result.success) {
     await router.push('/dashboard')
     return
   }
+
+  authError.value = useAuthStore().error || ''
 
   if (result.error === 'account_locked' && result.lockedUntil) {
     startCountdown(result.lockedUntil)
