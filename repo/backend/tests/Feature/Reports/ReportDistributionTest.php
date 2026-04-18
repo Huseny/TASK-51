@@ -48,7 +48,7 @@ class ReportDistributionTest extends TestCase
 
         RideOrder::factory()->create(['status' => 'completed', 'created_at' => '2026-04-01 10:00:00']);
         RideOrder::factory()->create(['status' => 'completed', 'created_at' => '2026-04-01 11:00:00']);
-        RideOrder::factory()->create(['status' => 'cancelled', 'created_at' => '2026-04-01 12:00:00']);
+        RideOrder::factory()->create(['status' => 'canceled', 'created_at' => '2026-04-01 12:00:00']);
 
         Sanctum::actingAs($admin);
 
@@ -60,12 +60,12 @@ class ReportDistributionTest extends TestCase
         $data = $response['datasets'][0]['data'];
 
         $completedIndex = array_search('completed', $labels, true);
-        $cancelledIndex = array_search('cancelled', $labels, true);
+        $canceledIndex = array_search('canceled', $labels, true);
 
         $this->assertNotFalse($completedIndex);
-        $this->assertNotFalse($cancelledIndex);
+        $this->assertNotFalse($canceledIndex);
         $this->assertSame(2, $data[$completedIndex]);
-        $this->assertSame(1, $data[$cancelledIndex]);
+        $this->assertSame(1, $data[$canceledIndex]);
     }
 
     public function test_rider_cannot_access_distribution(): void
@@ -99,7 +99,7 @@ class ReportDistributionTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
 
         RideOrder::factory()->create(['status' => 'completed', 'created_at' => '2026-01-15 10:00:00']);
-        RideOrder::factory()->create(['status' => 'cancelled', 'created_at' => '2026-02-20 10:00:00']);
+        RideOrder::factory()->create(['status' => 'canceled', 'created_at' => '2026-02-20 10:00:00']);
 
         Sanctum::actingAs($admin);
 
@@ -114,7 +114,7 @@ class ReportDistributionTest extends TestCase
         $this->assertNotFalse($completedIndex, 'Completed should appear in January results');
         $this->assertSame(1, $data[$completedIndex]);
 
-        $cancelledIndex = array_search('cancelled', $labels, true);
-        $this->assertFalse($cancelledIndex, 'Cancelled from February should not appear in January results');
+        $canceledIndex = array_search('canceled', $labels, true);
+        $this->assertFalse($canceledIndex, 'Canceled from February should not appear in January results');
     }
 }

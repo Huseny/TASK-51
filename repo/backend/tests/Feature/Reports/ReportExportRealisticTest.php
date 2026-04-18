@@ -39,7 +39,7 @@ class ReportExportRealisticTest extends TestCase
             'created_at' => now()->toDateString().' 10:00:00',
         ]);
         RideOrder::factory()->count(2)->create([
-            'status' => 'cancelled',
+            'status' => 'canceled',
             'created_at' => now()->toDateString().' 11:00:00',
         ]);
 

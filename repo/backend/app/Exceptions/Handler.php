@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Throwable;
 
@@ -67,6 +68,14 @@ class Handler
             ], 404);
         }
 
+        if ($exception instanceof NotFoundHttpException) {
+            return response()->json([
+                'error' => 'not_found',
+                'message' => 'The requested resource was not found',
+                'details' => (object) [],
+            ], 404);
+        }
+
         if ($exception instanceof TooManyRequestsHttpException || $exception instanceof ThrottleRequestsException) {
             return response()->json([
                 'error' => 'too_many_requests',
@@ -92,6 +101,14 @@ class Handler
                     'message' => 'You are not authorized to perform this action',
                     'details' => (object) [],
                 ], 403);
+            }
+
+            if ($status === 404) {
+                return response()->json([
+                    'error' => 'not_found',
+                    'message' => 'The requested resource was not found',
+                    'details' => (object) [],
+                ], 404);
             }
         }
 
